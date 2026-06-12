@@ -5,8 +5,10 @@ Inspired by tap-to-fill coloring books like *Coloring Games: Painting, Glow*.
 
 ## What kids can do
 
-- **Pick a picture** from a playful gallery — Dino 🦕, Kitty 🐱, Fish 🐠,
-  Butterfly 🦋, Flower 🌸, and House 🏠.
+- **Browse themed categories** — 🐾 Animals, 🐦 Birds, 🧚 Fairy, 👸 Princess —
+  each holding many pictures (dinos, puppies, owls, penguins, fairies with
+  sparkly wings, princesses in flowing gowns, and more).
+- **Pick a picture** from the category's gallery.
 - **Tap any part to fill it.** Every picture is split into small fillable
   regions, so touching a region instantly paints it with the chosen color.
 - **Drag to paint** across several parts in one smooth motion.

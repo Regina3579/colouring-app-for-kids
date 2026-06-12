@@ -61,6 +61,16 @@ struct ColoringPage: Identifiable {
     let cardTint: Color
 }
 
+// MARK: - A themed section holding many pictures
+
+struct Category: Identifiable {
+    let id: String
+    let name: String
+    let emoji: String
+    let tint: Color
+    let pages: [ColoringPage]
+}
+
 // MARK: - A kid friendly colour the child can pick
 
 struct Swatch: Identifiable, Equatable {
