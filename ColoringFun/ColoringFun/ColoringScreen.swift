@@ -57,7 +57,7 @@ struct ColoringScreen: View {
 
 // MARK: - Tool buttons + undo / clear
 
-private struct ToolBar: View {
+struct ToolBar: View {
     @Binding var tool: Tool
     let onUndo: () -> Void
     let onClear: () -> Void
@@ -104,7 +104,7 @@ private struct ToolBar: View {
 
 // MARK: - Colour swatches
 
-private struct PaletteBar: View {
+struct PaletteBar: View {
     @Binding var selectedColor: Color
     @Binding var selectedSwatch: UUID
 

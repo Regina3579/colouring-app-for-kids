@@ -61,6 +61,42 @@ struct ColoringPage: Identifiable {
     let cardTint: Color
 }
 
+// MARK: - A picture backed by a real outline image (tap-to-flood-fill)
+
+struct ImagePage: Identifiable {
+    let id: String
+    let title: String
+    let emoji: String
+    let imageName: String
+    let cardTint: Color
+}
+
+// MARK: - An item in a category: either a vector picture or an image picture
+
+enum CategoryItem: Identifiable {
+    case vector(ColoringPage)
+    case image(ImagePage)
+
+    var id: String {
+        switch self {
+        case .vector(let p): return p.id
+        case .image(let p): return p.id
+        }
+    }
+    var title: String {
+        switch self {
+        case .vector(let p): return p.title
+        case .image(let p): return p.title
+        }
+    }
+    var emoji: String {
+        switch self {
+        case .vector(let p): return p.emoji
+        case .image(let p): return p.emoji
+        }
+    }
+}
+
 // MARK: - A themed section holding many pictures
 
 struct Category: Identifiable {
@@ -68,7 +104,7 @@ struct Category: Identifiable {
     let name: String
     let emoji: String
     let tint: Color
-    let pages: [ColoringPage]
+    let items: [CategoryItem]
 }
 
 // MARK: - A kid friendly colour the child can pick

@@ -40,11 +40,17 @@ struct CategoryPagesView: View {
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 18) {
-                ForEach(category.pages) { page in
+                ForEach(category.items) { item in
                     NavigationLink {
-                        ColoringScreen(page: page)
+                        switch item {
+                        case .vector(let page): ColoringScreen(page: page)
+                        case .image(let page): ImageColoringScreen(page: page)
+                        }
                     } label: {
-                        PageCard(page: page)
+                        switch item {
+                        case .vector(let page): PageCard(page: page)
+                        case .image(let page): ImagePageCard(page: page)
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -75,7 +81,7 @@ private struct CategoryCard: View {
             Text(category.name)
                 .font(.title3.bold())
                 .foregroundStyle(inkColor)
-            Text("\(category.pages.count) pictures")
+            Text("\(category.items.count) pictures")
                 .font(.caption).foregroundStyle(inkColor.opacity(0.7))
         }
     }
@@ -89,6 +95,30 @@ private struct PageCard: View {
             ZStack {
                 RoundedRectangle(cornerRadius: 24).fill(page.cardTint)
                 MiniPreview(page: page).padding(14)
+            }
+            .frame(height: 150)
+            .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 4))
+            .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+
+            Text("\(page.emoji)  \(page.title)")
+                .font(.headline.bold())
+                .foregroundStyle(inkColor)
+        }
+    }
+}
+
+/// Card for an image-backed picture: shows the real outline thumbnail.
+private struct ImagePageCard: View {
+    let page: ImagePage
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 24).fill(page.cardTint)
+                Image(page.imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(10)
             }
             .frame(height: 150)
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 4))
