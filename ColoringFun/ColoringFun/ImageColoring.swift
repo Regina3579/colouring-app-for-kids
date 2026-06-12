@@ -27,33 +27,38 @@ final class FloodFillModel: ObservableObject {
         displayImage = img
         aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
 
-        // Rasterise into an RGBA byte buffer we can read.
+        // Rasterise into an RGBA byte buffer we can read (locals only —
+        // the closure must not touch self before all members are set).
         let cg = img.cgImage
         var width = cg?.width ?? 1
         var height = cg?.height ?? 1
         let scale = CGFloat(maxDim) / CGFloat(max(width, height))
         if scale < 1 { width = Int(CGFloat(width) * scale); height = Int(CGFloat(height) * scale) }
-        w = max(width, 1); h = max(height, 1)
+        let lw = max(width, 1), lh = max(height, 1)
 
-        var pixels = [UInt8](repeating: 255, count: w * h * 4)
+        var pixels = [UInt8](repeating: 255, count: lw * lh * 4)
         pixels.withUnsafeMutableBytes { raw in
-            if let ctx = CGContext(data: raw.baseAddress, width: w, height: h,
-                                   bitsPerComponent: 8, bytesPerRow: w * 4,
+            if let ctx = CGContext(data: raw.baseAddress, width: lw, height: lh,
+                                   bitsPerComponent: 8, bytesPerRow: lw * 4,
                                    space: CGColorSpaceCreateDeviceRGB(),
                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
                let cg {
-                ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+                ctx.draw(cg, in: CGRect(x: 0, y: 0, width: lw, height: lh))
             }
         }
 
-        barrier = [Bool](repeating: false, count: w * h)
-        for i in 0..<(w * h) {
+        var walls = [Bool](repeating: false, count: lw * lh)
+        for i in 0..<(lw * lh) {
             let o = i * 4
             let lum = Int(pixels[o]) * 30 + Int(pixels[o + 1]) * 59 + Int(pixels[o + 2]) * 11
-            barrier[i] = lum < 11000   // ~110/255 luminance
+            walls[i] = lum < 11000   // ~110/255 luminance
         }
-        paint = [UInt8](repeating: 0, count: w * h * 4)
-        visited = [Int32](repeating: 0, count: w * h)
+
+        w = lw
+        h = lh
+        barrier = walls
+        paint = [UInt8](repeating: 0, count: lw * lh * 4)
+        visited = [Int32](repeating: 0, count: lw * lh)
     }
 
     private static func blank() -> UIImage {
