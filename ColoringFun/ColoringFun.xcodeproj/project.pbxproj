@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXFileReference section */
+		AA00000000000000000000A5 /* ColoringFun.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ColoringFun.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		AA00000000000000000000A1 /* ColoringFun */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
