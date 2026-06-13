@@ -59,6 +59,11 @@ enum Categories {
         ("fairy_rainbow", "Rainbow Fairy", "🧚", Color(red: 0.80, green: 0.90, blue: 1.0)),
         ("fairy_princess", "Princess Fairy", "🧚", Color(red: 1.0, green: 0.82, blue: 0.92)),
         ("fairy_garden", "Garden Fairy", "🧚", Color(red: 0.84, green: 0.94, blue: 0.84)),
+        ("fairy_star", "Star Fairy", "🧚", Color(red: 0.86, green: 0.84, blue: 1.0)),
+        ("fairy_ballerina", "Ballerina Fairy", "🧚", Color(red: 1.0, green: 0.82, blue: 0.90)),
+        ("fairy_forest", "Woodland Fairy", "🧚", Color(red: 0.82, green: 0.92, blue: 0.80)),
+        ("fairy_mermaid", "Mermaid Fairy", "🧚", Color(red: 0.78, green: 0.92, blue: 0.94)),
+        ("fairy_winter", "Snow Fairy", "🧚", Color(red: 0.86, green: 0.92, blue: 1.0)),
     ]
 
     private static let fairyItems: [CategoryItem] = fairySpecs.map {
