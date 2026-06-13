@@ -10,8 +10,7 @@ enum Categories {
                  tint: Color(red: 0.80, green: 0.92, blue: 0.98),
                  items: BirdPages.all.map { .vector($0) }),
         Category(id: "fairy", name: "Fairy", emoji: "🧚",
-                 tint: Color(red: 0.90, green: 0.84, blue: 1.0),
-                 items: FairyPages.all.map { .vector($0) }),
+                 tint: Color(red: 0.90, green: 0.84, blue: 1.0), items: fairyItems),
         Category(id: "princess", name: "Princess", emoji: "👸",
                  tint: Color(red: 1.0, green: 0.82, blue: 0.90),
                  items: PrincessPages.all.map { .vector($0) }),
@@ -50,6 +49,19 @@ enum Categories {
     ]
 
     private static let dinosaurItems: [CategoryItem] = dinosaurSpecs.map {
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+    }
+
+    // Fairy outline pictures (tap to flood-fill).
+    private static let fairySpecs: [(String, String, String, Color)] = [
+        ("fairy_flower", "Flower Fairy", "🧚", Color(red: 1.0, green: 0.84, blue: 0.90)),
+        ("fairy_butterfly", "Butterfly Fairy", "🧚", Color(red: 0.86, green: 0.80, blue: 0.95)),
+        ("fairy_rainbow", "Rainbow Fairy", "🧚", Color(red: 0.80, green: 0.90, blue: 1.0)),
+        ("fairy_princess", "Princess Fairy", "🧚", Color(red: 1.0, green: 0.82, blue: 0.92)),
+        ("fairy_garden", "Garden Fairy", "🧚", Color(red: 0.84, green: 0.94, blue: 0.84)),
+    ]
+
+    private static let fairyItems: [CategoryItem] = fairySpecs.map {
         .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
     }
 }
