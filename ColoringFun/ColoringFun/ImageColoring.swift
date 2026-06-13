@@ -69,7 +69,7 @@ final class FloodFillModel: ObservableObject {
 
     // MARK: Painting
 
-    func fill(normalized pt: CGPoint, color: Color, tool: Tool) {
+    func fill(normalized pt: CGPoint, paint paintStyle: Paint, tool: Tool) {
         let x = min(w - 1, max(0, Int(pt.x * CGFloat(w))))
         let y = min(h - 1, max(0, Int(pt.y * CGFloat(h))))
         let start = y * w + x
@@ -88,8 +88,21 @@ final class FloodFillModel: ObservableObject {
         if tool == .eraser {
             for idx in region { let o = idx * 4; paint[o] = 0; paint[o+1] = 0; paint[o+2] = 0; paint[o+3] = 0 }
         } else {
-            let (r, g, b) = rgb(color)
-            for idx in region { let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255 }
+            switch paintStyle {
+            case .solid(let color):
+                let (r, g, b) = rgb(color)
+                for idx in region { let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255 }
+            case .gradient(let colors):
+                let stops = colors.map { rgb($0) }
+                var minY = Int.max, maxY = Int.min
+                for idx in region { let yy = idx / w; if yy < minY { minY = yy }; if yy > maxY { maxY = yy } }
+                let span = Double(max(1, maxY - minY))
+                for idx in region {
+                    let t = Double(idx / w - minY) / span
+                    let (r, g, b) = sample(stops, t)
+                    let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255
+                }
+            }
             if tool == .glitter { addSparkles(region) }
         }
 
@@ -97,6 +110,18 @@ final class FloodFillModel: ObservableObject {
         if undoStack.count > 30 { undoStack.removeFirst() }
         rebuild()
         Haptics.tap()
+    }
+
+    /// Linear interpolation across the gradient stops at position t in [0, 1].
+    private func sample(_ stops: [(UInt8, UInt8, UInt8)], _ t: Double) -> (UInt8, UInt8, UInt8) {
+        if stops.count == 1 { return stops[0] }
+        let clamped = min(1, max(0, t))
+        let pos = clamped * Double(stops.count - 1)
+        let i = min(stops.count - 2, Int(pos))
+        let f = pos - Double(i)
+        let a = stops[i], b = stops[i + 1]
+        func mix(_ x: UInt8, _ y: UInt8) -> UInt8 { UInt8(Double(x) + (Double(y) - Double(x)) * f) }
+        return (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
     }
 
     private func addSparkles(_ region: [Int]) {
@@ -178,7 +203,7 @@ final class FloodFillModel: ObservableObject {
 
 struct ImageColoringCanvas: View {
     @ObservedObject var model: FloodFillModel
-    let selectedColor: Color
+    let selectedPaint: Paint
     let tool: Tool
 
     var body: some View {
@@ -198,7 +223,7 @@ struct ImageColoringCanvas: View {
             let u = (cx - fit.minX) / fit.width
             let v = (cy - fit.minY) / fit.height
             if u >= 0, u <= 1, v >= 0, v <= 1 {
-                model.fill(normalized: CGPoint(x: u, y: v), color: selectedColor, tool: tool)
+                model.fill(normalized: CGPoint(x: u, y: v), paint: selectedPaint, tool: tool)
             }
         }
     }
@@ -209,8 +234,8 @@ struct ImageColoringCanvas: View {
 struct ImageColoringScreen: View {
     let page: ImagePage
     @StateObject private var model: FloodFillModel
-    @State private var selectedColor: Color = Palette.swatches[1].color
-    @State private var selectedSwatch: UUID = Palette.swatches[1].id
+    @State private var selectedPaint: Paint = Palette.defaultPaint
+    @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
 
     init(page: ImagePage) {
@@ -220,7 +245,7 @@ struct ImageColoringScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ImageColoringCanvas(model: model, selectedColor: selectedColor, tool: tool)
+            ImageColoringCanvas(model: model, selectedPaint: selectedPaint, tool: tool)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -232,7 +257,7 @@ struct ImageColoringScreen: View {
             ToolBar(tool: $tool, onUndo: model.undo, onClear: model.clear)
                 .padding(.vertical, 10)
 
-            PaletteBar(selectedColor: $selectedColor, selectedSwatch: $selectedSwatch)
+            PaletteBar(selectedPaint: $selectedPaint, selectedSwatchID: $selectedSwatchID)
                 .padding(.bottom, 8)
         }
         .background(

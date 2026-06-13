@@ -8,7 +8,7 @@ import UIKit
 /// touches with the currently selected colour + tool.
 struct ColoringCanvasView: View {
     let page: ColoringPage
-    let selectedColor: Color
+    let selectedPaint: Paint
     let tool: Tool
 
     @Binding var fills: [Int: Fill]
@@ -43,7 +43,7 @@ struct ColoringCanvasView: View {
                          y: c.y + (point.y - c.y - offset.height) / scale)
         guard let design = layout.toDesign(pc) else { return }
         guard let region = page.regions.last(where: { $0.path.contains(design) }) else { return }
-        let newFill: Fill? = (tool == .eraser) ? nil : Fill(color: selectedColor, tool: tool)
+        let newFill: Fill? = (tool == .eraser) ? nil : Fill(paint: selectedPaint, tool: tool)
         if fills[region.id] == newFill { return }
         history.append((region.id, fills[region.id]))
         if history.count > 50 { history.removeFirst() }
@@ -58,7 +58,8 @@ struct ColoringCanvasView: View {
         let outline = 3.5 * layout.scale
 
         if let fill = fills[region.id] {
-            ctx.fill(p, with: .color(fill.color.opacity(fill.tool == .crayon ? 0.9 : 1.0)))
+            let alpha = fill.tool == .crayon ? 0.9 : 1.0
+            ctx.fill(p, with: shading(for: fill.paint, in: p.boundingRect, alpha: alpha))
             switch fill.tool {
             case .crayon:  drawCrayon(p, in: &ctx, layout: layout)
             case .glitter: drawGlitter(p, id: region.id, in: &ctx, layout: layout)
@@ -70,6 +71,18 @@ struct ColoringCanvasView: View {
 
         ctx.stroke(p, with: .color(.black),
                    style: StrokeStyle(lineWidth: outline, lineCap: .round, lineJoin: .round))
+    }
+
+    /// Solid colour or top-to-bottom gradient shading for a region.
+    private func shading(for paint: Paint, in bbox: CGRect, alpha: Double) -> GraphicsContext.Shading {
+        switch paint {
+        case .solid(let color):
+            return .color(color.opacity(alpha))
+        case .gradient(let colors):
+            return .linearGradient(Gradient(colors: colors.map { $0.opacity(alpha) }),
+                                   startPoint: CGPoint(x: bbox.midX, y: bbox.minY),
+                                   endPoint: CGPoint(x: bbox.midX, y: bbox.maxY))
+        }
     }
 
     /// Waxy crayon look: soft diagonal hatching clipped to the region.

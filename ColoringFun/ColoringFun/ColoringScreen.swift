@@ -6,14 +6,14 @@ struct ColoringScreen: View {
 
     @State private var fills: [Int: Fill] = [:]
     @State private var history: [(Int, Fill?)] = []
-    @State private var selectedColor: Color = Palette.swatches[1].color
-    @State private var selectedSwatch: UUID = Palette.swatches[1].id
+    @State private var selectedPaint: Paint = Palette.defaultPaint
+    @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
 
     var body: some View {
         VStack(spacing: 0) {
             ColoringCanvasView(page: page,
-                               selectedColor: selectedColor,
+                               selectedPaint: selectedPaint,
                                tool: tool,
                                fills: $fills,
                                history: $history)
@@ -28,7 +28,7 @@ struct ColoringScreen: View {
             ToolBar(tool: $tool, onUndo: undo, onClear: clearAll)
                 .padding(.vertical, 10)
 
-            PaletteBar(selectedColor: $selectedColor, selectedSwatch: $selectedSwatch)
+            PaletteBar(selectedPaint: $selectedPaint, selectedSwatchID: $selectedSwatchID)
                 .padding(.bottom, 8)
         }
         .background(
@@ -105,35 +105,50 @@ struct ToolBar: View {
 // MARK: - Colour swatches
 
 struct PaletteBar: View {
-    @Binding var selectedColor: Color
-    @Binding var selectedSwatch: UUID
+    @Binding var selectedPaint: Paint
+    @Binding var selectedSwatchID: String
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(Palette.swatches) { swatch in
+                    let selected = selectedSwatchID == swatch.id
                     Button {
-                        selectedColor = swatch.color
-                        selectedSwatch = swatch.id
+                        selectedPaint = swatch.paint
+                        selectedSwatchID = swatch.id
                     } label: {
-                        Circle()
-                            .fill(swatch.color)
+                        SwatchShape(paint: swatch.paint)
                             .frame(width: 46, height: 46)
                             .overlay(Circle().stroke(.white, lineWidth: 4))
                             .overlay(
                                 Circle().stroke(Color(red: 0.32, green: 0.30, blue: 0.45),
-                                                lineWidth: selectedSwatch == swatch.id ? 3 : 0)
+                                                lineWidth: selected ? 3 : 0)
                                     .padding(-3)
                             )
-                            .scaleEffect(selectedSwatch == swatch.id ? 1.18 : 1.0)
+                            .scaleEffect(selected ? 1.18 : 1.0)
                             .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
-                            .animation(.spring(response: 0.3), value: selectedSwatch)
+                            .animation(.spring(response: 0.3), value: selectedSwatchID)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
+        }
+    }
+}
+
+/// A round swatch showing either a solid colour or a gradient blend.
+struct SwatchShape: View {
+    let paint: Paint
+
+    var body: some View {
+        switch paint {
+        case .solid(let color):
+            Circle().fill(color)
+        case .gradient(let colors):
+            Circle().fill(LinearGradient(colors: colors,
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
         }
     }
 }
