@@ -44,7 +44,7 @@ enum Categories {
         ("ankylosaurus", "Ankylosaurus", "🦕", Color(red: 0.90, green: 0.88, blue: 0.74)),
         ("brontosaurus", "Diplodocus", "🦕", Color(red: 0.78, green: 0.90, blue: 0.90)),
         ("parasaurolophus", "Parasaurolophus", "🦕", Color(red: 0.88, green: 0.90, blue: 0.78)),
-        // slot 8 "Velociraptor" — awaiting a velociraptor picture to replace the duplicate Ankylosaurus
+        ("velociraptor", "Velociraptor", "🦖", Color(red: 0.92, green: 0.86, blue: 0.76)),
         ("spinosaurus", "Spinosaurus", "🦖", Color(red: 0.80, green: 0.88, blue: 0.92)),
         ("pterodactyl", "Pteranodon", "🦖", Color(red: 0.84, green: 0.90, blue: 0.86)),
     ]
