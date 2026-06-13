@@ -149,6 +149,15 @@ struct SwatchShape: View {
         case .gradient(let colors):
             Circle().fill(LinearGradient(colors: colors,
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
+        case .glitter(let color):
+            ZStack {
+                Circle().fill(color)
+                Circle().fill(RadialGradient(colors: [.white.opacity(0.55), .clear],
+                                             center: .topLeading, startRadius: 1, endRadius: 34))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+            }
         }
     }
 }

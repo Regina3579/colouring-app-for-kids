@@ -43,15 +43,21 @@ struct Region: Identifiable {
 enum Paint: Equatable {
     case solid(Color)
     case gradient([Color])
+    case glitter(Color)
 
     var colors: [Color] {
         switch self {
         case .solid(let c): return [c]
         case .gradient(let cs): return cs
+        case .glitter(let c): return [c]
         }
     }
     var isGradient: Bool {
         if case .gradient = self { return true }
+        return false
+    }
+    var isGlitter: Bool {
+        if case .glitter = self { return true }
         return false
     }
 }
@@ -187,7 +193,22 @@ enum Palette {
                name: "Peach"),
     ]
 
-    static let swatches: [Swatch] = solids + gradients
+    static let glitters: [Swatch] = [
+        Swatch(id: "gl_pink",   paint: .glitter(c(1.00, 0.45, 0.75)), name: "Pink Glitter"),
+        Swatch(id: "gl_rose",   paint: .glitter(c(0.95, 0.30, 0.45)), name: "Rose Glitter"),
+        Swatch(id: "gl_purple", paint: .glitter(c(0.65, 0.40, 0.92)), name: "Purple Glitter"),
+        Swatch(id: "gl_blue",   paint: .glitter(c(0.30, 0.50, 0.95)), name: "Blue Glitter"),
+        Swatch(id: "gl_sky",    paint: .glitter(c(0.30, 0.75, 0.95)), name: "Sky Glitter"),
+        Swatch(id: "gl_teal",   paint: .glitter(c(0.20, 0.78, 0.72)), name: "Teal Glitter"),
+        Swatch(id: "gl_green",  paint: .glitter(c(0.40, 0.80, 0.40)), name: "Green Glitter"),
+        Swatch(id: "gl_lime",   paint: .glitter(c(0.75, 0.90, 0.30)), name: "Lime Glitter"),
+        Swatch(id: "gl_gold",   paint: .glitter(c(1.00, 0.80, 0.25)), name: "Gold Glitter"),
+        Swatch(id: "gl_orange", paint: .glitter(c(1.00, 0.55, 0.20)), name: "Orange Glitter"),
+        Swatch(id: "gl_red",    paint: .glitter(c(0.95, 0.30, 0.30)), name: "Red Glitter"),
+        Swatch(id: "gl_silver", paint: .glitter(c(0.80, 0.82, 0.88)), name: "Silver Glitter"),
+    ]
+
+    static let swatches: [Swatch] = solids + gradients + glitters
 
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }

@@ -89,7 +89,7 @@ final class FloodFillModel: ObservableObject {
             for idx in region { let o = idx * 4; paint[o] = 0; paint[o+1] = 0; paint[o+2] = 0; paint[o+3] = 0 }
         } else {
             switch paintStyle {
-            case .solid(let color):
+            case .solid(let color), .glitter(let color):
                 let (r, g, b) = rgb(color)
                 for idx in region { let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255 }
             case .gradient(let colors):
@@ -103,7 +103,7 @@ final class FloodFillModel: ObservableObject {
                     let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255
                 }
             }
-            if tool == .glitter { addSparkles(region) }
+            if tool == .glitter || paintStyle.isGlitter { addSparkles(region) }
         }
 
         undoStack.append(changes)
@@ -126,11 +126,21 @@ final class FloodFillModel: ObservableObject {
 
     private func addSparkles(_ region: [Int]) {
         var rng = SystemRandomNumberGenerator()
-        let count = max(8, region.count / 90)
-        for _ in 0..<count {
-            let idx = region[Int.random(in: 0..<region.count, using: &rng)]
+        let count = max(10, region.count / 130)
+        func white(_ idx: Int) {
+            guard idx >= 0, idx < w * h, !barrier[idx] else { return }
             let o = idx * 4
             paint[o] = 255; paint[o+1] = 255; paint[o+2] = 255; paint[o+3] = 255
+        }
+        for _ in 0..<count {
+            let idx = region[Int.random(in: 0..<region.count, using: &rng)]
+            let x = idx % w, y = idx / w
+            // small sparkle cluster (plus shape) for visibility
+            white(idx)
+            if x > 0 { white(idx - 1) }
+            if x < w - 1 { white(idx + 1) }
+            if y > 0 { white(idx - w) }
+            if y < h - 1 { white(idx + w) }
         }
     }
 

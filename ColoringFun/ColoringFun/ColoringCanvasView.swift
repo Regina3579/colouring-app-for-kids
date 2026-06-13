@@ -60,10 +60,9 @@ struct ColoringCanvasView: View {
         if let fill = fills[region.id] {
             let alpha = fill.tool == .crayon ? 0.9 : 1.0
             ctx.fill(p, with: shading(for: fill.paint, in: p.boundingRect, alpha: alpha))
-            switch fill.tool {
-            case .crayon:  drawCrayon(p, in: &ctx, layout: layout)
-            case .glitter: drawGlitter(p, id: region.id, in: &ctx, layout: layout)
-            case .bucket, .eraser: break
+            if fill.tool == .crayon { drawCrayon(p, in: &ctx, layout: layout) }
+            if fill.tool == .glitter || fill.paint.isGlitter {
+                drawGlitter(p, id: region.id, in: &ctx, layout: layout)
             }
         } else {
             ctx.fill(p, with: .color(.white))
@@ -77,6 +76,8 @@ struct ColoringCanvasView: View {
     private func shading(for paint: Paint, in bbox: CGRect, alpha: Double) -> GraphicsContext.Shading {
         switch paint {
         case .solid(let color):
+            return .color(color.opacity(alpha))
+        case .glitter(let color):
             return .color(color.opacity(alpha))
         case .gradient(let colors):
             return .linearGradient(Gradient(colors: colors.map { $0.opacity(alpha) }),
