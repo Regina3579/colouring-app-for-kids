@@ -37,16 +37,16 @@ enum Categories {
 
     // Dinosaur outline pictures (tap to flood-fill).
     private static let dinosaurSpecs: [(String, String, String, Color)] = [
+        ("trex", "T-Rex", "🦖", Color(red: 0.94, green: 0.84, blue: 0.74)),
         ("triceratops", "Triceratops", "🦕", Color(red: 0.80, green: 0.92, blue: 0.80)),
         ("stegosaurus", "Stegosaurus", "🦕", Color(red: 0.86, green: 0.92, blue: 0.74)),
-        ("brontosaurus", "Brontosaurus", "🦕", Color(red: 0.78, green: 0.90, blue: 0.90)),
-        ("ankylosaurus", "Ankylosaurus", "🦖", Color(red: 0.90, green: 0.88, blue: 0.74)),
         ("brachiosaurus", "Brachiosaurus", "🦕", Color(red: 0.82, green: 0.90, blue: 0.82)),
+        ("ankylosaurus", "Ankylosaurus", "🦕", Color(red: 0.90, green: 0.88, blue: 0.74)),
+        ("brontosaurus", "Diplodocus", "🦕", Color(red: 0.78, green: 0.90, blue: 0.90)),
         ("parasaurolophus", "Parasaurolophus", "🦕", Color(red: 0.88, green: 0.90, blue: 0.78)),
-        ("trex", "T-Rex", "🦖", Color(red: 0.94, green: 0.84, blue: 0.74)),
+        // slot 8 "Velociraptor" — awaiting a velociraptor picture to replace the duplicate Ankylosaurus
         ("spinosaurus", "Spinosaurus", "🦖", Color(red: 0.80, green: 0.88, blue: 0.92)),
-        ("ankylo2", "Ankylosaurus", "🦕", Color(red: 0.86, green: 0.82, blue: 0.74)),
-        ("pterodactyl", "Pterodactyl", "🦖", Color(red: 0.84, green: 0.90, blue: 0.86)),
+        ("pterodactyl", "Pteranodon", "🦖", Color(red: 0.84, green: 0.90, blue: 0.86)),
     ]
 
     private static let dinosaurItems: [CategoryItem] = dinosaurSpecs.map {
