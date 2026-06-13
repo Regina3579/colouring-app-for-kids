@@ -4,6 +4,8 @@ enum Categories {
     static let all: [Category] = [
         Category(id: "animals", name: "Animals", emoji: "🐾",
                  tint: Color(red: 1.0, green: 0.86, blue: 0.72), items: animalItems),
+        Category(id: "dinosaurs", name: "Dinosaurs", emoji: "🦕",
+                 tint: Color(red: 0.78, green: 0.92, blue: 0.78), items: dinosaurItems),
         Category(id: "birds", name: "Birds", emoji: "🐦",
                  tint: Color(red: 0.80, green: 0.92, blue: 0.98),
                  items: BirdPages.all.map { .vector($0) }),
@@ -30,6 +32,19 @@ enum Categories {
     ]
 
     private static let animalItems: [CategoryItem] = animalSpecs.map {
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+    }
+
+    // Dinosaur outline pictures (tap to flood-fill).
+    private static let dinosaurSpecs: [(String, String, String, Color)] = [
+        ("triceratops", "Triceratops", "🦕", Color(red: 0.80, green: 0.92, blue: 0.80)),
+        ("stegosaurus", "Stegosaurus", "🦕", Color(red: 0.86, green: 0.92, blue: 0.74)),
+        ("brontosaurus", "Brontosaurus", "🦕", Color(red: 0.78, green: 0.90, blue: 0.90)),
+        ("ankylosaurus", "Ankylosaurus", "🦖", Color(red: 0.90, green: 0.88, blue: 0.74)),
+        ("brachiosaurus", "Brachiosaurus", "🦕", Color(red: 0.82, green: 0.90, blue: 0.82)),
+    ]
+
+    private static let dinosaurItems: [CategoryItem] = dinosaurSpecs.map {
         .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
     }
 }
