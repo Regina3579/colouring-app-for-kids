@@ -129,6 +129,8 @@ struct Category: Identifiable {
     let emoji: String
     let tint: Color
     let items: [CategoryItem]
+    /// Optional image asset shown on the category card instead of the emoji.
+    var thumbnail: String? = nil
 }
 
 // MARK: - A kid friendly colour or gradient the child can pick

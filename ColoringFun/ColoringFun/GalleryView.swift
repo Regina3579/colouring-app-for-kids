@@ -72,9 +72,16 @@ private struct CategoryCard: View {
         VStack(spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 26).fill(category.tint)
-                Text(category.emoji).font(.system(size: 76))
+                if let thumb = category.thumbnail {
+                    Image(thumb)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Text(category.emoji).font(.system(size: 76))
+                }
             }
             .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 26))
             .overlay(RoundedRectangle(cornerRadius: 26).stroke(.white, lineWidth: 5))
             .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
 
