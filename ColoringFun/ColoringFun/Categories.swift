@@ -42,6 +42,11 @@ enum Categories {
         ("brontosaurus", "Brontosaurus", "🦕", Color(red: 0.78, green: 0.90, blue: 0.90)),
         ("ankylosaurus", "Ankylosaurus", "🦖", Color(red: 0.90, green: 0.88, blue: 0.74)),
         ("brachiosaurus", "Brachiosaurus", "🦕", Color(red: 0.82, green: 0.90, blue: 0.82)),
+        ("parasaurolophus", "Parasaurolophus", "🦕", Color(red: 0.88, green: 0.90, blue: 0.78)),
+        ("trex", "T-Rex", "🦖", Color(red: 0.94, green: 0.84, blue: 0.74)),
+        ("spinosaurus", "Spinosaurus", "🦖", Color(red: 0.80, green: 0.88, blue: 0.92)),
+        ("ankylo2", "Ankylosaurus", "🦕", Color(red: 0.86, green: 0.82, blue: 0.74)),
+        ("pterodactyl", "Pterodactyl", "🦖", Color(red: 0.84, green: 0.90, blue: 0.86)),
     ]
 
     private static let dinosaurItems: [CategoryItem] = dinosaurSpecs.map {
