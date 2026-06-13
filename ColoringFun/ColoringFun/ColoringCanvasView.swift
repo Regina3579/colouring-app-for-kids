@@ -62,7 +62,8 @@ struct ColoringCanvasView: View {
             ctx.fill(p, with: shading(for: fill.paint, in: p.boundingRect, alpha: alpha))
             if fill.tool == .crayon { drawCrayon(p, in: &ctx, layout: layout) }
             if fill.tool == .glitter || fill.paint.isGlitter {
-                drawGlitter(p, id: region.id, in: &ctx, layout: layout)
+                drawGlitter(p, id: region.id, color: fill.paint.colors.first ?? .white,
+                            in: &ctx, layout: layout)
             }
         } else {
             ctx.fill(p, with: .color(.white))
@@ -104,23 +105,60 @@ struct ColoringCanvasView: View {
         }
     }
 
-    /// Sparkly glitter: scattered stars, stable per region thanks to the seed.
-    private func drawGlitter(_ p: Path, id: Int, in ctx: inout GraphicsContext, layout: Layout) {
+    /// Shimmering glitter: dense fine grains in tinted colours plus a few
+    /// bright shining star-sparkles with a soft glow. Stable per region.
+    private func drawGlitter(_ p: Path, id: Int, color: Color,
+                             in ctx: inout GraphicsContext, layout: Layout) {
         let b = p.boundingRect
         guard b.width > 0, b.height > 0 else { return }
+        let gold = Color(red: 1.0, green: 0.86, blue: 0.35)
+        let light = blend(color, .white, 0.7)
+        let deep = blend(color, .white, 0.25)
+        let grainColors = [Color.white, .white, light, gold, deep]
+
         ctx.drawLayer { layer in
             layer.clip(to: p)
             var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(id)) &* 0x9E3779B1 &+ 1)
-            let density = max(40, min(700, Int(b.width * b.height / 520)))
-            for _ in 0..<density {
+
+            // Fine glitter grains — lots of tiny tinted specks.
+            let grains = max(80, min(2200, Int(b.width * b.height / 150)))
+            for _ in 0..<grains {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
                 let py = b.minY + CGFloat(rng.unit()) * b.height
-                let s = (1.6 + CGFloat(rng.unit()) * 3.2) * layout.scale
-                let bright = rng.unit() > 0.5
-                let sparkle = star(at: CGPoint(x: px, y: py), size: s)
-                layer.fill(sparkle, with: .color(.white.opacity(bright ? 0.95 : 0.5)))
+                let r = (0.5 + CGFloat(rng.unit()) * 1.5) * layout.scale
+                let c = grainColors[Int(rng.unit() * Double(grainColors.count)) % grainColors.count]
+                layer.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                           with: .color(c.opacity(0.5 + rng.unit() * 0.5)))
+            }
+
+            // Bright shining sparkles with a glow halo.
+            let stars = max(5, min(60, Int(b.width * b.height / 4200)))
+            for _ in 0..<stars {
+                let px = b.minX + CGFloat(rng.unit()) * b.width
+                let py = b.minY + CGFloat(rng.unit()) * b.height
+                let s = (3.5 + CGFloat(rng.unit()) * 4.5) * layout.scale
+                let c = CGPoint(x: px, y: py)
+                layer.fill(Path(ellipseIn: CGRect(x: px - s * 1.6, y: py - s * 1.6,
+                                                  width: s * 3.2, height: s * 3.2)),
+                           with: .radialGradient(Gradient(colors: [.white.opacity(0.55), .clear]),
+                                                 center: c, startRadius: 0, endRadius: s * 1.6))
+                layer.fill(star(at: c, size: s), with: .color(.white))
+                layer.fill(star(at: c, size: s * 0.5), with: .color(gold.opacity(0.95)))
             }
         }
+    }
+
+    /// Linear blend between two colours (t = 0 → a, t = 1 → b).
+    private func blend(_ a: Color, _ b: Color, _ t: CGFloat) -> Color {
+        #if canImport(UIKit)
+        var ar: CGFloat = 0, ag: CGFloat = 0, ab: CGFloat = 0, aa: CGFloat = 0
+        var br: CGFloat = 0, bg: CGFloat = 0, bb: CGFloat = 0, ba: CGFloat = 0
+        UIColor(a).getRed(&ar, green: &ag, blue: &ab, alpha: &aa)
+        UIColor(b).getRed(&br, green: &bg, blue: &bb, alpha: &ba)
+        return Color(red: ar + (br - ar) * t, green: ag + (bg - ag) * t, blue: ab + (bb - ab) * t)
+        #else
+        return a
+        #endif
     }
 
     /// A tiny four-pointed sparkle.

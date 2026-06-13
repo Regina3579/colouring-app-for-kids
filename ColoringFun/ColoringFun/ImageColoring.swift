@@ -103,7 +103,9 @@ final class FloodFillModel: ObservableObject {
                     let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255
                 }
             }
-            if tool == .glitter || paintStyle.isGlitter { addSparkles(region) }
+            if tool == .glitter || paintStyle.isGlitter {
+                addSparkles(region, base: rgb(paintStyle.colors.first ?? .white))
+            }
         }
 
         undoStack.append(changes)
@@ -124,23 +126,50 @@ final class FloodFillModel: ObservableObject {
         return (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
     }
 
-    private func addSparkles(_ region: [Int]) {
+    private func addSparkles(_ region: [Int], base: (UInt8, UInt8, UInt8)) {
         var rng = SystemRandomNumberGenerator()
-        let count = max(10, region.count / 130)
-        func white(_ idx: Int) {
-            guard idx >= 0, idx < w * h, !barrier[idx] else { return }
-            let o = idx * 4
-            paint[o] = 255; paint[o+1] = 255; paint[o+2] = 255; paint[o+3] = 255
+        typealias RGB = (UInt8, UInt8, UInt8)
+        func toward(_ c: RGB, white t: Double) -> RGB {
+            (UInt8(Double(c.0) + (255 - Double(c.0)) * t),
+             UInt8(Double(c.1) + (255 - Double(c.1)) * t),
+             UInt8(Double(c.2) + (255 - Double(c.2)) * t))
         }
-        for _ in 0..<count {
+        let white: RGB = (255, 255, 255)
+        let gold: RGB = (255, 216, 90)
+        let light = toward(base, white: 0.7)
+        let deep = toward(base, white: 0.3)
+        let tints = [white, white, light, gold, deep]
+
+        // Only paint pixels belonging to this region (visited == gen), so undo stays exact.
+        func setpx(_ x: Int, _ y: Int, _ c: RGB) {
+            guard x >= 0, y >= 0, x < w, y < h else { return }
+            let idx = y * w + x
+            guard visited[idx] == gen else { return }
+            let o = idx * 4
+            paint[o] = c.0; paint[o+1] = c.1; paint[o+2] = c.2; paint[o+3] = 255
+        }
+        func block(_ x: Int, _ y: Int, _ s: Int, _ c: RGB) {
+            for dy in 0..<s { for dx in 0..<s { setpx(x + dx, y + dy, c) } }
+        }
+        func sparkle(_ x: Int, _ y: Int, _ L: Int) {
+            for d in -L...L { setpx(x + d, y, white); setpx(x, y + d, white) }
+            let hh = L / 2
+            for d in -hh...hh { setpx(x + d, y + d, white); setpx(x + d, y - d, white) }
+            setpx(x, y, gold)
+        }
+
+        // Dense fine grains (2px blocks) in tinted colours.
+        let grains = max(20, region.count / 90)
+        for _ in 0..<grains {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
-            let x = idx % w, y = idx / w
-            // small sparkle cluster (plus shape) for visibility
-            white(idx)
-            if x > 0 { white(idx - 1) }
-            if x < w - 1 { white(idx + 1) }
-            if y > 0 { white(idx - w) }
-            if y < h - 1 { white(idx + w) }
+            let c = tints[Int.random(in: 0..<tints.count, using: &rng)]
+            block(idx % w, idx / w, 2, c)
+        }
+        // A few bright shining star-sparkles.
+        let stars = max(3, region.count / 3500)
+        for _ in 0..<stars {
+            let idx = region[Int.random(in: 0..<region.count, using: &rng)]
+            sparkle(idx % w, idx / w, 3 + Int.random(in: 0...2, using: &rng))
         }
     }
 
