@@ -182,37 +182,25 @@ struct ImageColoringCanvas: View {
     let tool: Tool
 
     var body: some View {
-        GeometryReader { geo in
-            let fit = fittedRect(aspect: model.aspect, in: geo.size)
-            ZStack {
-                Color.white
-                if let pimg = model.paintImage {
-                    Image(uiImage: pimg).resizable().interpolation(.medium)
-                }
-                Image(uiImage: model.displayImage).resizable().blendMode(.multiply)
+        ZStack {
+            Color.white
+            if let pimg = model.paintImage {
+                Image(uiImage: pimg).resizable().interpolation(.medium)
             }
-            .frame(width: fit.width, height: fit.height)
-            .position(x: fit.midX, y: fit.midY)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0).onEnded { value in
-                    let nx = (value.location.x - fit.minX) / fit.width
-                    let ny = (value.location.y - fit.minY) / fit.height
-                    if nx >= 0, nx <= 1, ny >= 0, ny <= 1 {
-                        model.fill(normalized: CGPoint(x: nx, y: ny), color: selectedColor, tool: tool)
-                    }
-                }
-            )
+            Image(uiImage: model.displayImage).resizable().blendMode(.multiply)
         }
-    }
-
-    private func fittedRect(aspect: CGFloat, in size: CGSize) -> CGRect {
-        var width = size.width
-        var height = width / aspect
-        if height > size.height { height = size.height; width = height * aspect }
-        let x = (size.width - width) / 2
-        let y = (size.height - height) / 2
-        return CGRect(x: x, y: y, width: width, height: height)
+        .aspectRatio(model.aspect, contentMode: .fit)
+        .zoomableColoring { point, size, scale, offset in
+            let fit = aspectFitRect(aspect: model.aspect, in: size)
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let cx = c.x + (point.x - c.x - offset.width) / scale
+            let cy = c.y + (point.y - c.y - offset.height) / scale
+            let u = (cx - fit.minX) / fit.width
+            let v = (cy - fit.minY) / fit.height
+            if u >= 0, u <= 1, v >= 0, v <= 1 {
+                model.fill(normalized: CGPoint(x: u, y: v), color: selectedColor, tool: tool)
+            }
+        }
     }
 }
 

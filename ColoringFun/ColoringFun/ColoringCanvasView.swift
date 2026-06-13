@@ -16,44 +16,35 @@ struct ColoringCanvasView: View {
     @Binding var history: [(Int, Fill?)]
 
     var body: some View {
-        GeometryReader { geo in
-            let layout = Layout(canvas: page.canvas, view: geo.size)
-
-            Canvas { ctx, _ in
-                for region in page.regions {
-                    draw(region: region, in: &ctx, layout: layout)
-                }
-                if let deco = page.decorations {
-                    let p = deco.applying(layout.transform)
-                    ctx.stroke(p, with: .color(.black),
-                               style: StrokeStyle(lineWidth: 3 * layout.scale,
-                                                  lineCap: .round, lineJoin: .round))
-                }
+        Canvas { ctx, size in
+            let layout = Layout(canvas: page.canvas, view: size)
+            for region in page.regions {
+                draw(region: region, in: &ctx, layout: layout)
             }
-            .background(Color.white)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in paint(at: value.location, layout: layout) }
-                    .onEnded { _ in lastTouchedRegion = nil }
-            )
+            if let deco = page.decorations {
+                let p = deco.applying(layout.transform)
+                ctx.stroke(p, with: .color(.black),
+                           style: StrokeStyle(lineWidth: 3 * layout.scale,
+                                              lineCap: .round, lineJoin: .round))
+            }
+        }
+        .background(Color.white)
+        .zoomableColoring { point, size, scale, offset in
+            fill(at: point, size: size, scale: scale, offset: offset)
         }
     }
 
     // MARK: Painting
 
-    @State private var lastTouchedRegion: Int? = nil
-
-    private func paint(at viewPoint: CGPoint, layout: Layout) {
-        guard let design = layout.toDesign(viewPoint) else { return }
-        // Topmost region (drawn last) wins.
+    private func fill(at point: CGPoint, size: CGSize, scale: CGFloat, offset: CGSize) {
+        let layout = Layout(canvas: page.canvas, view: size)
+        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+        let pc = CGPoint(x: c.x + (point.x - c.x - offset.width) / scale,
+                         y: c.y + (point.y - c.y - offset.height) / scale)
+        guard let design = layout.toDesign(pc) else { return }
         guard let region = page.regions.last(where: { $0.path.contains(design) }) else { return }
-        if region.id == lastTouchedRegion { return }   // avoid re-firing while dragging inside one part
-        lastTouchedRegion = region.id
-
         let newFill: Fill? = (tool == .eraser) ? nil : Fill(color: selectedColor, tool: tool)
         if fills[region.id] == newFill { return }
-
         history.append((region.id, fills[region.id]))
         if history.count > 50 { history.removeFirst() }
         fills[region.id] = newFill
