@@ -344,7 +344,8 @@ struct ImageColoringScreen: View {
     @State private var shareImage: UIImage?
     @State private var showShare = false
     @State private var savedAlert = false
-    @State private var saveOK = true
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
 
     init(page: ImagePage) {
         self.page = page
@@ -378,24 +379,43 @@ struct ImageColoringScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button { saveToPhotos() } label: { Image(systemName: "square.and.arrow.down") }
+                Menu {
+                    Button { saveToDrawings() } label: {
+                        Label("Save to My Drawings", systemImage: "photo.stack.fill")
+                    }
+                    Button { saveToPhotos() } label: {
+                        Label("Save to Photos", systemImage: "photo")
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
                 Button { share() } label: { Image(systemName: "square.and.arrow.up") }
             }
         }
         .sheet(isPresented: $showShare) {
             if let shareImage { ActivityView(items: [shareImage]) }
         }
-        .alert(saveOK ? "Saved to Photos!" : "Couldn't Save", isPresented: $savedAlert) {
+        .alert(alertTitle, isPresented: $savedAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(saveOK ? "Your picture was added to your photos."
-                        : "Please allow photo access in Settings to save.")
+            Text(alertMessage)
         }
     }
 
+    private func saveToDrawings() {
+        let ok = DrawingsStore.shared.save(model.exportImage())
+        alertTitle = ok ? "Saved!" : "Couldn't Save"
+        alertMessage = ok ? "Your drawing was added to My Drawings." : "Something went wrong saving."
+        savedAlert = true
+    }
+
     private func saveToPhotos() {
-        let img = model.exportImage()
-        PhotoSaver.shared.save(img) { ok in saveOK = ok; savedAlert = true }
+        PhotoSaver.shared.save(model.exportImage()) { ok in
+            alertTitle = ok ? "Saved to Photos!" : "Couldn't Save"
+            alertMessage = ok ? "Your picture was added to your photos."
+                              : "Please allow photo access in Settings to save."
+            savedAlert = true
+        }
     }
 
     private func share() {

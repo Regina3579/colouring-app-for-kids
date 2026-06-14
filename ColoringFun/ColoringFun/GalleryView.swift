@@ -28,6 +28,15 @@ struct GalleryView: View {
             .background(bgGradient.ignoresSafeArea())
             .navigationTitle("Coloring Fun")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        MyDrawingsView()
+                    } label: {
+                        Label("My Drawings", systemImage: "photo.stack.fill")
+                    }
+                }
+            }
         }
     }
 }
