@@ -97,7 +97,7 @@ struct VectorSparkleLayer: View {
                     guard b.width > 0, b.height > 0 else { continue }
                     let colors = glitterStarColors(f.paint)
                     var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(region.id)) &* 2654435761 &+ 7)
-                    let count = max(6, min(70, Int(b.width * b.height / 5000)))
+                    let count = max(12, min(160, Int(b.width * b.height / 2400)))
                     ctx.drawLayer { layer in
                         layer.clip(to: p)
                         for _ in 0..<count {
