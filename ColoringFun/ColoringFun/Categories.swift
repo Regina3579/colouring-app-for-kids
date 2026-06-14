@@ -83,6 +83,11 @@ enum Categories {
         ("unicorn_baby", "Baby Unicorn", "🦄", Color(red: 0.86, green: 0.92, blue: 1.0)),
         ("unicorn_pegacorn", "Pegacorn", "🦄", Color(red: 0.88, green: 0.90, blue: 1.0)),
         ("unicorn_flower", "Flower Unicorn", "🦄", Color(red: 1.0, green: 0.88, blue: 0.94)),
+        ("unicorn_mermaid", "Mermaid Unicorn", "🦄", Color(red: 0.78, green: 0.94, blue: 0.96)),
+        ("unicorn_galaxy", "Galaxy Unicorn", "🦄", Color(red: 0.84, green: 0.82, blue: 1.0)),
+        ("unicorn_crystal", "Crystal Unicorn", "🦄", Color(red: 0.86, green: 0.96, blue: 0.98)),
+        ("unicorn_snow", "Snow Unicorn", "🦄", Color(red: 0.88, green: 0.94, blue: 1.0)),
+        ("unicorn_fairy", "Fairy Unicorn", "🦄", Color(red: 0.96, green: 0.86, blue: 1.0)),
     ]
 
     private static let unicornItems: [CategoryItem] = unicornSpecs.map {
