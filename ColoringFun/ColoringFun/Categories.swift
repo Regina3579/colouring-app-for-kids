@@ -10,8 +10,7 @@ enum Categories {
                  thumbnail: "cat_dinosaurs"),
         Category(id: "birds", name: "Birds", emoji: "🐦",
                  tint: Color(red: 0.80, green: 0.92, blue: 0.98),
-                 items: BirdPages.all.map { .vector($0) },
-                 thumbnail: "cat_birds"),
+                 items: birdItems, thumbnail: "cat_birds"),
         Category(id: "fairy", name: "Fairy", emoji: "🧚",
                  tint: Color(red: 0.90, green: 0.84, blue: 1.0), items: fairyItems,
                  thumbnail: "cat_fairy"),
@@ -92,6 +91,19 @@ enum Categories {
     ]
 
     private static let unicornItems: [CategoryItem] = unicornSpecs.map {
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+    }
+
+    // Bird outline pictures (tap to flood-fill).
+    private static let birdSpecs: [(String, String, String, Color)] = [
+        ("bird_parrot", "Parrot", "🦜", Color(red: 0.80, green: 0.94, blue: 0.80)),
+        ("bird_owl", "Owl", "🦉", Color(red: 0.90, green: 0.86, blue: 0.78)),
+        ("bird_peacock", "Peacock", "🦚", Color(red: 0.74, green: 0.92, blue: 0.92)),
+        ("bird_penguin", "Penguin", "🐧", Color(red: 0.82, green: 0.90, blue: 0.96)),
+        ("bird_duck", "Duck", "🦆", Color(red: 1.0, green: 0.95, blue: 0.74)),
+    ]
+
+    private static let birdItems: [CategoryItem] = birdSpecs.map {
         .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
     }
 }
