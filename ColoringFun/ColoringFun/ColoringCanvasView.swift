@@ -107,7 +107,7 @@ struct ColoringArtwork: View {
             layer.clip(to: p)
             var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(id)) &* 0x9E3779B1 &+ 1)
 
-            let grains = max(80, min(4500, Int(b.width * b.height / 150 * intensity)))
+            let grains = max(80, min(4500, Int(b.width * b.height / 150 * CGFloat(intensity))))
             for _ in 0..<grains {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
                 let py = b.minY + CGFloat(rng.unit()) * b.height
@@ -117,7 +117,7 @@ struct ColoringArtwork: View {
                            with: .color(c.opacity(0.55 + rng.unit() * 0.45)))
             }
 
-            let stars = max(5, min(120, Int(b.width * b.height / 4200 * intensity)))
+            let stars = max(5, min(120, Int(b.width * b.height / 4200 * CGFloat(intensity))))
             for _ in 0..<stars {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
                 let py = b.minY + CGFloat(rng.unit()) * b.height
