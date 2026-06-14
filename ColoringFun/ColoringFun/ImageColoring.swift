@@ -17,10 +17,17 @@ final class FloodFillModel: ObservableObject {
     private var paint: [UInt8]         // RGBA buffer of the child's colours
     private var visited: [Int32]
     private var gen: Int32 = 0
-    private var undoStack: [[(Int, (UInt8, UInt8, UInt8, UInt8))]] = []
+
+    private struct UndoStep {
+        var pixels: [(Int, (UInt8, UInt8, UInt8, UInt8))]
+        var anchorsAdded: Int
+    }
+    private var undoStack: [UndoStep] = []
 
     @Published private(set) var paintImage: UIImage?
     @Published private(set) var hasPaint = false
+    /// Animated twinkle anchors over glittered areas (normalized coords).
+    @Published private(set) var anchors: [SparkleAnchor] = []
 
     init(imageName: String, maxDim: Int = 640) {
         let img = UIImage(named: imageName) ?? FloodFillModel.blank()
@@ -98,6 +105,7 @@ final class FloodFillModel: ObservableObject {
             changes.append((idx, (paint[o], paint[o + 1], paint[o + 2], paint[o + 3])))
         }
 
+        var anchorsAdded = 0
         if tool == .eraser {
             for idx in region { let o = idx * 4; paint[o] = 0; paint[o+1] = 0; paint[o+2] = 0; paint[o+3] = 0 }
         } else {
@@ -116,13 +124,32 @@ final class FloodFillModel: ObservableObject {
                     ?? [(255, 255, 255), (255, 216, 90)]
                 addSparkles(region, tints: sparkleTints(paintStyle), stars: stars,
                             intensity: style?.intensity ?? 1.0)
+                anchorsAdded = addAnchors(region, paint: paintStyle)
             }
         }
 
-        undoStack.append(changes)
+        undoStack.append(UndoStep(pixels: changes, anchorsAdded: anchorsAdded))
         if undoStack.count > 30 { undoStack.removeFirst() }
         rebuild()
         Haptics.tap()
+    }
+
+    /// Scatter a handful of animated twinkle anchors across the glittered region.
+    private func addAnchors(_ region: [Int], paint paintStyle: Paint) -> Int {
+        let colors = glitterStarColors(paintStyle)
+        var rng = SystemRandomNumberGenerator()
+        let count = max(5, min(70, region.count / 5500))
+        for _ in 0..<count {
+            let idx = region[Int.random(in: 0..<region.count, using: &rng)]
+            let col = colors[Int.random(in: 0..<colors.count, using: &rng)]
+            anchors.append(SparkleAnchor(
+                x: CGFloat(idx % w) / CGFloat(w),
+                y: CGFloat(idx / w) / CGFloat(h),
+                color: col,
+                size: CGFloat.random(in: 0.006...0.013, using: &rng),
+                phase: Double.random(in: 0..<6.28, using: &rng)))
+        }
+        return count
     }
 
     /// Fill a region with a vertical gradient of the given colours.
@@ -207,10 +234,13 @@ final class FloodFillModel: ObservableObject {
     }
 
     func undo() {
-        guard let changes = undoStack.popLast() else { return }
-        for (idx, old) in changes {
+        guard let step = undoStack.popLast() else { return }
+        for (idx, old) in step.pixels {
             let o = idx * 4
             paint[o] = old.0; paint[o+1] = old.1; paint[o+2] = old.2; paint[o+3] = old.3
+        }
+        if step.anchorsAdded > 0 {
+            anchors.removeLast(min(step.anchorsAdded, anchors.count))
         }
         rebuild()
         Haptics.tap()
@@ -220,6 +250,7 @@ final class FloodFillModel: ObservableObject {
         guard hasPaint else { return }
         for i in paint.indices { paint[i] = 0 }
         undoStack.removeAll()
+        anchors.removeAll()
         rebuild()
         Haptics.tap()
     }
@@ -285,6 +316,7 @@ struct ImageColoringCanvas: View {
                 Image(uiImage: pimg).resizable().interpolation(.medium)
             }
             Image(uiImage: model.displayImage).resizable().blendMode(.multiply)
+            ImageSparkleLayer(anchors: model.anchors)
         }
         .aspectRatio(model.aspect, contentMode: .fit)
         .zoomableColoring { point, size, scale, offset in
