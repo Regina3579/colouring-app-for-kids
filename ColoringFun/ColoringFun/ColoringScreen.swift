@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// The full colouring experience for one picture: canvas + tools + colours.
 struct ColoringScreen: View {
@@ -9,6 +12,10 @@ struct ColoringScreen: View {
     @State private var selectedPaint: Paint = Palette.defaultPaint
     @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
+    @State private var shareImage: UIImage?
+    @State private var showShare = false
+    @State private var savedAlert = false
+    @State private var saveOK = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,6 +46,41 @@ struct ColoringScreen: View {
         )
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button(action: saveToPhotos) { Image(systemName: "square.and.arrow.down") }
+                Button(action: share) { Image(systemName: "square.and.arrow.up") }
+            }
+        }
+        .sheet(isPresented: $showShare) {
+            if let shareImage { ActivityView(items: [shareImage]) }
+        }
+        .alert(saveOK ? "Saved to Photos!" : "Couldn't Save", isPresented: $savedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveOK ? "Your picture was added to your photos."
+                        : "Please allow photo access in Settings to save.")
+        }
+    }
+
+    @MainActor private func renderArtwork() -> UIImage? {
+        let w: CGFloat = 1500
+        let h = w * page.canvas.height / max(page.canvas.width, 1)
+        let renderer = ImageRenderer(content: ColoringArtwork(page: page, fills: fills)
+            .frame(width: w, height: h))
+        renderer.scale = 2
+        return renderer.uiImage
+    }
+
+    private func saveToPhotos() {
+        guard let img = renderArtwork() else { return }
+        PhotoSaver.shared.save(img) { ok in saveOK = ok; savedAlert = true }
+    }
+
+    private func share() {
+        guard let img = renderArtwork() else { return }
+        shareImage = img
+        showShare = true
     }
 
     private func undo() {

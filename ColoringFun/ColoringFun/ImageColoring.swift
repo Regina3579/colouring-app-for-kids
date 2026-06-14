@@ -67,6 +67,19 @@ final class FloodFillModel: ObservableObject {
         }
     }
 
+    /// The finished picture (line art over the child's colours) for Save/Share.
+    func exportImage() -> UIImage {
+        let size = displayImage.size
+        let format = UIGraphicsImageRendererFormat.default()
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIColor.white.setFill(); UIRectFill(rect)
+            paintImage?.draw(in: rect)
+            displayImage.draw(in: rect, blendMode: .multiply, alpha: 1.0)
+        }
+    }
+
     // MARK: Painting
 
     func fill(normalized pt: CGPoint, paint paintStyle: Paint, tool: Tool) {
@@ -294,6 +307,10 @@ struct ImageColoringScreen: View {
     @State private var selectedPaint: Paint = Palette.defaultPaint
     @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
+    @State private var shareImage: UIImage?
+    @State private var showShare = false
+    @State private var savedAlert = false
+    @State private var saveOK = true
 
     init(page: ImagePage) {
         self.page = page
@@ -325,5 +342,30 @@ struct ImageColoringScreen: View {
         )
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button { saveToPhotos() } label: { Image(systemName: "square.and.arrow.down") }
+                Button { share() } label: { Image(systemName: "square.and.arrow.up") }
+            }
+        }
+        .sheet(isPresented: $showShare) {
+            if let shareImage { ActivityView(items: [shareImage]) }
+        }
+        .alert(saveOK ? "Saved to Photos!" : "Couldn't Save", isPresented: $savedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(saveOK ? "Your picture was added to your photos."
+                        : "Please allow photo access in Settings to save.")
+        }
+    }
+
+    private func saveToPhotos() {
+        let img = model.exportImage()
+        PhotoSaver.shared.save(img) { ok in saveOK = ok; savedAlert = true }
+    }
+
+    private func share() {
+        shareImage = model.exportImage()
+        showShare = true
     }
 }

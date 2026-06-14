@@ -4,16 +4,11 @@ import SwiftUI
 import UIKit
 #endif
 
-/// The drawing surface: renders every region and fills the one the child
-/// touches with the currently selected colour + tool.
-struct ColoringCanvasView: View {
+/// Pure drawing of a colouring page with its current fills (no gestures).
+/// Reused by the live canvas and by Save/Share image export.
+struct ColoringArtwork: View {
     let page: ColoringPage
-    let selectedPaint: Paint
-    let tool: Tool
-
-    @Binding var fills: [Int: Fill]
-    /// Records (regionID, previousFill) so a single Undo can step back.
-    @Binding var history: [(Int, Fill?)]
+    let fills: [Int: Fill]
 
     var body: some View {
         Canvas { ctx, size in
@@ -29,26 +24,6 @@ struct ColoringCanvasView: View {
             }
         }
         .background(Color.white)
-        .zoomableColoring { point, size, scale, offset in
-            fill(at: point, size: size, scale: scale, offset: offset)
-        }
-    }
-
-    // MARK: Painting
-
-    private func fill(at point: CGPoint, size: CGSize, scale: CGFloat, offset: CGSize) {
-        let layout = Layout(canvas: page.canvas, view: size)
-        let c = CGPoint(x: size.width / 2, y: size.height / 2)
-        let pc = CGPoint(x: c.x + (point.x - c.x - offset.width) / scale,
-                         y: c.y + (point.y - c.y - offset.height) / scale)
-        guard let design = layout.toDesign(pc) else { return }
-        guard let region = page.regions.last(where: { $0.path.contains(design) }) else { return }
-        let newFill: Fill? = (tool == .eraser) ? nil : Fill(paint: selectedPaint, tool: tool)
-        if fills[region.id] == newFill { return }
-        history.append((region.id, fills[region.id]))
-        if history.count > 50 { history.removeFirst() }
-        fills[region.id] = newFill
-        Haptics.tap()
     }
 
     // MARK: Region rendering
@@ -122,8 +97,7 @@ struct ColoringCanvasView: View {
     }
 
     /// Shimmering glitter: dense fine grains plus a few bright shining
-    /// star-sparkles with a soft glow. Grain/star colours come from the
-    /// palette (tinted for colour glitter, rainbow for holographic).
+    /// star-sparkles with a soft glow.
     private func drawGlitter(_ p: Path, id: Int, grain: [Color], star: [Color],
                              in ctx: inout GraphicsContext, layout: Layout) {
         let b = p.boundingRect
@@ -133,7 +107,6 @@ struct ColoringCanvasView: View {
             layer.clip(to: p)
             var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(id)) &* 0x9E3779B1 &+ 1)
 
-            // Fine glitter grains — lots of tiny specks.
             let grains = max(80, min(2200, Int(b.width * b.height / 150)))
             for _ in 0..<grains {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
@@ -144,7 +117,6 @@ struct ColoringCanvasView: View {
                            with: .color(c.opacity(0.5 + rng.unit() * 0.5)))
             }
 
-            // Bright shining sparkles with a glow halo.
             let stars = max(5, min(60, Int(b.width * b.height / 4200)))
             for _ in 0..<stars {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
@@ -188,6 +160,41 @@ struct ColoringCanvasView: View {
         p.addLine(to: CGPoint(x: c.x - s * 0.28, y: c.y - s * 0.28))
         p.closeSubpath()
         return p
+    }
+}
+
+/// The interactive drawing surface: the artwork plus zoom/pan and tap-to-fill.
+struct ColoringCanvasView: View {
+    let page: ColoringPage
+    let selectedPaint: Paint
+    let tool: Tool
+
+    @Binding var fills: [Int: Fill]
+    /// Records (regionID, previousFill) so a single Undo can step back.
+    @Binding var history: [(Int, Fill?)]
+
+    var body: some View {
+        ColoringArtwork(page: page, fills: fills)
+            .zoomableColoring { point, size, scale, offset in
+                fill(at: point, size: size, scale: scale, offset: offset)
+            }
+    }
+
+    // MARK: Painting
+
+    private func fill(at point: CGPoint, size: CGSize, scale: CGFloat, offset: CGSize) {
+        let layout = Layout(canvas: page.canvas, view: size)
+        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+        let pc = CGPoint(x: c.x + (point.x - c.x - offset.width) / scale,
+                         y: c.y + (point.y - c.y - offset.height) / scale)
+        guard let design = layout.toDesign(pc) else { return }
+        guard let region = page.regions.last(where: { $0.path.contains(design) }) else { return }
+        let newFill: Fill? = (tool == .eraser) ? nil : Fill(paint: selectedPaint, tool: tool)
+        if fills[region.id] == newFill { return }
+        history.append((region.id, fills[region.id]))
+        if history.count > 50 { history.removeFirst() }
+        fills[region.id] = newFill
+        Haptics.tap()
     }
 }
 
