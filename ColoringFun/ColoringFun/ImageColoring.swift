@@ -418,9 +418,11 @@ struct ImageColoringScreen: View {
                         Label("Save to Photos", systemImage: "photo")
                     }
                 } label: {
-                    Image(systemName: "square.and.arrow.down")
+                    Image(systemName: "tray.and.arrow.down.fill").cuteCircle(Candy.green)
                 }
-                Button { share() } label: { Image(systemName: "square.and.arrow.up") }
+                Button { share() } label: {
+                    Image(systemName: "square.and.arrow.up.fill").cuteCircle(Candy.blue)
+                }
             }
         }
         .sheet(isPresented: $showShare) {

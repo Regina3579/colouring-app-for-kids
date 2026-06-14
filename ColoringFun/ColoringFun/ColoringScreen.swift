@@ -65,9 +65,11 @@ struct ColoringScreen: View {
                         Label("Save to Photos", systemImage: "photo")
                     }
                 } label: {
-                    Image(systemName: "square.and.arrow.down")
+                    Image(systemName: "tray.and.arrow.down.fill").cuteCircle(Candy.green)
                 }
-                Button(action: share) { Image(systemName: "square.and.arrow.up") }
+                Button(action: share) {
+                    Image(systemName: "square.and.arrow.up.fill").cuteCircle(Candy.blue)
+                }
             }
         }
         .sheet(isPresented: $showShare) {
@@ -172,35 +174,50 @@ struct ToolBar: View {
     var canReplay = false
     var isReplaying = false
 
-    private let blue = Color(red: 0.42, green: 0.55, blue: 0.95)
-    private let green = Color(red: 0.30, green: 0.72, blue: 0.45)
-    private let red = Color(red: 0.98, green: 0.45, blue: 0.45)
+    private func toolColor(_ t: Tool) -> Color {
+        switch t {
+        case .bucket:  return Candy.blue
+        case .crayon:  return Candy.orange
+        case .glitter: return Candy.pink
+        case .eraser:  return Candy.teal
+        }
+    }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 9) {
+            HStack(spacing: 10) {
                 ForEach(Tool.allCases) { t in
                     Button { tool = t } label: {
-                        VStack(spacing: 2) {
-                            Image(systemName: t.icon).font(.title3)
-                            Text(t.title).font(.caption2.bold())
+                        VStack(spacing: 3) {
+                            Image(systemName: t.icon).font(.title2)
+                            Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
                         }
-                        .frame(width: 54, height: 54)
-                        .foregroundStyle(tool == t ? .white : Color(red: 0.32, green: 0.30, blue: 0.45))
+                        .foregroundStyle(.white)
+                        .frame(width: 58, height: 58)
                         .background(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(tool == t ? blue : .white)
+                            RoundedRectangle(cornerRadius: 19)
+                                .fill(toolColor(t).gradient)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 19)
+                                        .fill(.white.opacity(tool == t ? 0 : 0.22))
+                                )
                         )
-                        .shadow(color: .black.opacity(0.12), radius: 3, y: 2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 19)
+                                .stroke(.white, lineWidth: tool == t ? 4 : 2)
+                        )
+                        .scaleEffect(tool == t ? 1.1 : 1.0)
+                        .shadow(color: toolColor(t).opacity(0.45), radius: 3, y: 2)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tool)
                     }
                     .buttonStyle(.plain)
                     .disabled(isReplaying)
                 }
 
-                roundButton("arrow.uturn.backward", blue, onUndo, enabled: canUndo && !isReplaying)
-                roundButton("arrow.uturn.forward", blue, onRedo, enabled: canRedo && !isReplaying)
-                roundButton("play.fill", green, onReplay, enabled: canReplay && !isReplaying)
-                roundButton("trash", red, onClear, enabled: !isReplaying)
+                roundButton("arrow.uturn.backward", Candy.blue, onUndo, enabled: canUndo && !isReplaying)
+                roundButton("arrow.uturn.forward", Candy.green, onRedo, enabled: canRedo && !isReplaying)
+                roundButton("play.fill", Candy.purple, onReplay, enabled: canReplay && !isReplaying)
+                roundButton("trash.fill", Candy.red, onClear, enabled: !isReplaying)
             }
             .padding(.horizontal, 14)
         }
@@ -210,11 +227,12 @@ struct ToolBar: View {
                              enabled: Bool) -> some View {
         Button(action: action) {
             Image(systemName: system)
-                .font(.title3.bold())
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-                .frame(width: 46, height: 54)
-                .background(RoundedRectangle(cornerRadius: 15).fill(tint.opacity(enabled ? 1 : 0.35)))
-                .shadow(color: .black.opacity(0.12), radius: 3, y: 2)
+                .frame(width: 54, height: 54)
+                .background(Circle().fill((enabled ? tint : Color.gray.opacity(0.4)).gradient))
+                .overlay(Circle().stroke(.white, lineWidth: 3))
+                .shadow(color: (enabled ? tint : .clear).opacity(0.45), radius: 3, y: 2)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)

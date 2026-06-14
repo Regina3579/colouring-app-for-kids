@@ -33,7 +33,7 @@ struct GalleryView: View {
                     NavigationLink {
                         MyDrawingsView()
                     } label: {
-                        Label("My Drawings", systemImage: "photo.stack.fill")
+                        Image(systemName: "photo.stack.fill").cuteCircle(Candy.purple)
                     }
                 }
             }

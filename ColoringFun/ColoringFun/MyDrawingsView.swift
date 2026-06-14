@@ -88,9 +88,11 @@ struct DrawingDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button { showShare = true } label: { Image(systemName: "square.and.arrow.up") }
+                Button { showShare = true } label: {
+                    Image(systemName: "square.and.arrow.up.fill").cuteCircle(Candy.blue)
+                }
                 Button(role: .destructive) { confirmDelete = true } label: {
-                    Image(systemName: "trash")
+                    Image(systemName: "trash.fill").cuteCircle(Candy.red)
                 }
             }
         }
