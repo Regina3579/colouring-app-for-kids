@@ -3,12 +3,15 @@ import SwiftUI
 enum Categories {
     static let all: [Category] = [
         Category(id: "animals", name: "Animals", emoji: "🐾",
-                 tint: Color(red: 1.0, green: 0.86, blue: 0.72), items: animalItems),
+                 tint: Color(red: 1.0, green: 0.86, blue: 0.72), items: animalItems,
+                 thumbnail: "cat_animals"),
         Category(id: "dinosaurs", name: "Dinosaurs", emoji: "🦕",
-                 tint: Color(red: 0.78, green: 0.92, blue: 0.78), items: dinosaurItems),
+                 tint: Color(red: 0.78, green: 0.92, blue: 0.78), items: dinosaurItems,
+                 thumbnail: "cat_dinosaurs"),
         Category(id: "birds", name: "Birds", emoji: "🐦",
                  tint: Color(red: 0.80, green: 0.92, blue: 0.98),
-                 items: BirdPages.all.map { .vector($0) }),
+                 items: BirdPages.all.map { .vector($0) },
+                 thumbnail: "cat_birds"),
         Category(id: "fairy", name: "Fairy", emoji: "🧚",
                  tint: Color(red: 0.90, green: 0.84, blue: 1.0), items: fairyItems,
                  thumbnail: "cat_fairy"),
