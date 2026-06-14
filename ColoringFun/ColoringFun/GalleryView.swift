@@ -75,7 +75,8 @@ private struct CategoryCard: View {
                 if let thumb = category.thumbnail {
                     Image(thumb)
                         .resizable()
-                        .scaledToFill()
+                        .scaledToFit()
+                        .padding(8)
                 } else {
                     Text(category.emoji).font(.system(size: 76))
                 }
