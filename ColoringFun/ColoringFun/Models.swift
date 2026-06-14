@@ -106,6 +106,18 @@ enum Glitters {
                c(0.86, 1.00, 0.92), c(1.00, 0.95, 0.84)],
         sparkle: [.white, c(1.00, 0.70, 0.86), c(0.74, 0.64, 1.00), c(1.00, 0.86, 0.46), c(0.55, 0.92, 0.96)],
         intensity: 1.9)
+
+    static let roseGold = GlitterStyle(
+        id: "rosegold",
+        base: [c(1.00, 0.89, 0.85), c(0.97, 0.74, 0.68), c(0.85, 0.55, 0.50)],
+        sparkle: [.white, c(1.00, 0.82, 0.76), c(1.00, 0.88, 0.62), c(0.91, 0.62, 0.56)],
+        intensity: 1.8)
+
+    static let galaxy = GlitterStyle(
+        id: "galaxy",
+        base: [c(0.16, 0.11, 0.34), c(0.34, 0.15, 0.50), c(0.20, 0.18, 0.55), c(0.45, 0.14, 0.44)],
+        sparkle: [.white, c(0.55, 0.85, 1.00), c(1.00, 0.55, 0.95), c(1.00, 0.90, 0.55), c(0.78, 0.68, 1.00)],
+        intensity: 2.1)
 }
 
 // MARK: - What a child painted into one region
@@ -246,6 +258,8 @@ enum Palette {
         Swatch(id: "gl_unicorn", paint: .fancy(Glitters.unicorn),     name: "Unicorn Pastel"),
         Swatch(id: "gl_goldfoil",   paint: .fancy(Glitters.gold),     name: "Gold Foil"),
         Swatch(id: "gl_silverfoil", paint: .fancy(Glitters.silver),   name: "Silver Foil"),
+        Swatch(id: "gl_rosegold",   paint: .fancy(Glitters.roseGold), name: "Rose Gold"),
+        Swatch(id: "gl_galaxy",     paint: .fancy(Glitters.galaxy),   name: "Galaxy"),
         Swatch(id: "gl_pink",   paint: .glitter(c(1.00, 0.45, 0.75)), name: "Pink Glitter"),
         Swatch(id: "gl_rose",   paint: .glitter(c(0.95, 0.30, 0.45)), name: "Rose Glitter"),
         Swatch(id: "gl_purple", paint: .glitter(c(0.65, 0.40, 0.92)), name: "Purple Glitter"),
