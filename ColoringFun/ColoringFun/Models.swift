@@ -44,14 +44,14 @@ enum Paint: Equatable {
     case solid(Color)
     case gradient([Color])
     case glitter(Color)
-    case holographic
+    case fancy(GlitterStyle)
 
     var colors: [Color] {
         switch self {
         case .solid(let c): return [c]
         case .gradient(let cs): return cs
         case .glitter(let c): return [c]
-        case .holographic: return Holo.base
+        case .fancy(let s): return s.base
         }
     }
     var isGradient: Bool {
@@ -60,34 +60,52 @@ enum Paint: Equatable {
     }
     /// True for any paint that should render sparkles.
     var sparkles: Bool {
-        switch self { case .glitter, .holographic: return true; default: return false }
+        switch self { case .glitter, .fancy: return true; default: return false }
     }
-    var isHolographic: Bool {
-        if case .holographic = self { return true }
-        return false
+    /// The special glitter style, if this is a fancy paint.
+    var fancyStyle: GlitterStyle? {
+        if case .fancy(let s) = self { return s }
+        return nil
     }
 }
 
-/// Colour palettes for the iridescent holographic glitter.
-enum Holo {
-    /// Soft pearlescent base the area is filled with.
-    static let base: [Color] = [
-        Color(red: 1.00, green: 0.86, blue: 0.93),
-        Color(red: 0.88, green: 0.86, blue: 1.00),
-        Color(red: 0.82, green: 0.96, blue: 1.00),
-        Color(red: 0.86, green: 1.00, blue: 0.92),
-        Color(red: 1.00, green: 0.98, blue: 0.83),
-        Color(red: 1.00, green: 0.90, blue: 0.86),
-    ]
-    /// Vivid iridescent sparkle colours.
-    static let sparkle: [Color] = [
-        Color(red: 0.30, green: 0.95, blue: 0.95),
-        Color(red: 1.00, green: 0.42, blue: 0.85),
-        Color(red: 0.65, green: 0.45, blue: 1.00),
-        Color(red: 1.00, green: 0.85, blue: 0.30),
-        Color(red: 0.40, green: 0.95, blue: 0.62),
-        Color(red: 1.00, green: 0.60, blue: 0.42),
-    ]
+/// A premium glitter: a pearlescent/metallic base plus sparkle colours.
+struct GlitterStyle: Equatable {
+    let id: String
+    let base: [Color]       // soft base the area is filled with
+    let sparkle: [Color]    // grain & star sparkle colours
+    let intensity: Double   // density multiplier (higher = more shimmer)
+}
+
+enum Glitters {
+    private static func c(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r, green: g, blue: b) }
+
+    static let holographic = GlitterStyle(
+        id: "holo",
+        base: [c(1.00, 0.84, 0.94), c(0.86, 0.84, 1.00), c(0.80, 0.96, 1.00),
+               c(0.84, 1.00, 0.90), c(1.00, 0.98, 0.80), c(1.00, 0.88, 0.86)],
+        sparkle: [c(0.20, 1.00, 0.98), c(1.00, 0.35, 0.88), c(0.62, 0.40, 1.00),
+                  c(1.00, 0.85, 0.25), c(0.35, 1.00, 0.60), c(1.00, 0.55, 0.40)],
+        intensity: 2.2)
+
+    static let gold = GlitterStyle(
+        id: "gold",
+        base: [c(1.00, 0.95, 0.74), c(1.00, 0.84, 0.42), c(0.84, 0.64, 0.24)],
+        sparkle: [.white, c(1.00, 0.93, 0.58), c(1.00, 0.82, 0.34), c(0.92, 0.68, 0.22)],
+        intensity: 1.7)
+
+    static let silver = GlitterStyle(
+        id: "silver",
+        base: [c(0.98, 0.99, 1.00), c(0.84, 0.88, 0.93), c(0.68, 0.73, 0.80)],
+        sparkle: [.white, c(0.90, 0.94, 1.00), c(0.76, 0.81, 0.90), c(0.62, 0.68, 0.78)],
+        intensity: 1.7)
+
+    static let unicorn = GlitterStyle(
+        id: "unicorn",
+        base: [c(1.00, 0.85, 0.93), c(0.90, 0.85, 1.00), c(0.83, 0.95, 1.00),
+               c(0.86, 1.00, 0.92), c(1.00, 0.95, 0.84)],
+        sparkle: [.white, c(1.00, 0.70, 0.86), c(0.74, 0.64, 1.00), c(1.00, 0.86, 0.46), c(0.55, 0.92, 0.96)],
+        intensity: 1.9)
 }
 
 // MARK: - What a child painted into one region
@@ -224,7 +242,10 @@ enum Palette {
     ]
 
     static let glitters: [Swatch] = [
-        Swatch(id: "gl_holo",   paint: .holographic, name: "Holographic"),
+        Swatch(id: "gl_holo",    paint: .fancy(Glitters.holographic), name: "Holographic"),
+        Swatch(id: "gl_unicorn", paint: .fancy(Glitters.unicorn),     name: "Unicorn Pastel"),
+        Swatch(id: "gl_goldfoil",   paint: .fancy(Glitters.gold),     name: "Gold Foil"),
+        Swatch(id: "gl_silverfoil", paint: .fancy(Glitters.silver),   name: "Silver Foil"),
         Swatch(id: "gl_pink",   paint: .glitter(c(1.00, 0.45, 0.75)), name: "Pink Glitter"),
         Swatch(id: "gl_rose",   paint: .glitter(c(0.95, 0.30, 0.45)), name: "Rose Glitter"),
         Swatch(id: "gl_purple", paint: .glitter(c(0.65, 0.40, 0.92)), name: "Purple Glitter"),
