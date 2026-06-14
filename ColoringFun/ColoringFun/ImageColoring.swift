@@ -138,7 +138,7 @@ final class FloodFillModel: ObservableObject {
     private func addAnchors(_ region: [Int], paint paintStyle: Paint) -> Int {
         let colors = glitterStarColors(paintStyle)
         var rng = SystemRandomNumberGenerator()
-        let count = max(12, min(160, region.count / 2600))
+        let count = max(5, min(70, region.count / 5500))
         for _ in 0..<count {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
             let col = colors[Int.random(in: 0..<colors.count, using: &rng)]
