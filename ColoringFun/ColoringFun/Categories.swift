@@ -100,7 +100,12 @@ enum Categories {
         ("bird_owl", "Owl", "🦉", Color(red: 0.90, green: 0.86, blue: 0.78)),
         ("bird_peacock", "Peacock", "🦚", Color(red: 0.74, green: 0.92, blue: 0.92)),
         ("bird_penguin", "Penguin", "🐧", Color(red: 0.82, green: 0.90, blue: 0.96)),
+        ("bird_flamingo", "Flamingo", "🦩", Color(red: 1.0, green: 0.84, blue: 0.90)),
+        ("bird_sparrow", "Sparrow", "🐦", Color(red: 0.92, green: 0.88, blue: 0.78)),
+        ("bird_toucan", "Toucan", "🦜", Color(red: 0.84, green: 0.94, blue: 0.84)),
         ("bird_duck", "Duck", "🦆", Color(red: 1.0, green: 0.95, blue: 0.74)),
+        ("bird_chicken", "Chicken", "🐔", Color(red: 1.0, green: 0.90, blue: 0.78)),
+        ("bird_bluebird", "Bluebird", "🐦", Color(red: 0.80, green: 0.90, blue: 1.0)),
     ]
 
     private static let birdItems: [CategoryItem] = birdSpecs.map {
