@@ -18,11 +18,13 @@ final class FloodFillModel: ObservableObject {
     private var visited: [Int32]
     private var gen: Int32 = 0
 
-    private struct UndoStep {
-        var pixels: [(Int, (UInt8, UInt8, UInt8, UInt8))]
-        var anchorsAdded: Int
-    }
-    private var undoStack: [UndoStep] = []
+    /// One recorded fill (for undo / redo / replay).
+    struct Op { let point: CGPoint; let paint: Paint; let tool: Tool }
+    private var ops: [Op] = []
+    private var redoOps: [Op] = []
+    var canUndo: Bool { !ops.isEmpty }
+    var canRedo: Bool { !redoOps.isEmpty }
+    var canReplay: Bool { !ops.isEmpty }
 
     @Published private(set) var paintImage: UIImage?
     @Published private(set) var hasPaint = false
@@ -90,22 +92,25 @@ final class FloodFillModel: ObservableObject {
     // MARK: Painting
 
     func fill(normalized pt: CGPoint, paint paintStyle: Paint, tool: Tool) {
+        guard applyFillRegion(at: pt, paintStyle, tool) else { return }
+        ops.append(Op(point: pt, paint: paintStyle, tool: tool))
+        redoOps.removeAll()
+        rebuild()
+        Haptics.tap()
+    }
+
+    /// Paints the region at `pt` with the given paint/tool. Returns false if the
+    /// tap missed a fillable area. Does not record undo state.
+    @discardableResult
+    private func applyFillRegion(at pt: CGPoint, _ paintStyle: Paint, _ tool: Tool) -> Bool {
         let x = min(w - 1, max(0, Int(pt.x * CGFloat(w))))
         let y = min(h - 1, max(0, Int(pt.y * CGFloat(h))))
         let start = y * w + x
-        if barrier[start] { return }                       // tapped a line
+        if barrier[start] { return false }                  // tapped a line
 
         let region = collectRegion(from: start)
-        if region.isEmpty { return }
+        if region.isEmpty { return false }
 
-        var changes: [(Int, (UInt8, UInt8, UInt8, UInt8))] = []
-        changes.reserveCapacity(region.count)
-        for idx in region {
-            let o = idx * 4
-            changes.append((idx, (paint[o], paint[o + 1], paint[o + 2], paint[o + 3])))
-        }
-
-        var anchorsAdded = 0
         if tool == .eraser {
             for idx in region { let o = idx * 4; paint[o] = 0; paint[o+1] = 0; paint[o+2] = 0; paint[o+3] = 0 }
         } else {
@@ -124,18 +129,44 @@ final class FloodFillModel: ObservableObject {
                     ?? [(255, 255, 255), (255, 216, 90)]
                 addSparkles(region, tints: sparkleTints(paintStyle), stars: stars,
                             intensity: style?.intensity ?? 1.0)
-                anchorsAdded = addAnchors(region, paint: paintStyle)
+                addAnchors(region, paint: paintStyle)
             }
         }
+        return true
+    }
 
-        undoStack.append(UndoStep(pixels: changes, anchorsAdded: anchorsAdded))
-        if undoStack.count > 30 { undoStack.removeFirst() }
+    // MARK: Undo / redo / replay
+
+    func redo() {
+        guard let op = redoOps.popLast() else { return }
+        applyFillRegion(at: op.point, op.paint, op.tool)
+        ops.append(op)
         rebuild()
         Haptics.tap()
     }
 
+    /// Repaints the whole canvas from the given ops (used by undo and replay setup).
+    private func rebuildFromOps(_ list: [Op]) {
+        for i in paint.indices { paint[i] = 0 }
+        anchors.removeAll()
+        for op in list { applyFillRegion(at: op.point, op.paint, op.tool) }
+    }
+
+    func replayOps() -> [Op] { ops }
+
+    func clearCanvasForReplay() {
+        for i in paint.indices { paint[i] = 0 }
+        anchors.removeAll()
+        rebuild()
+    }
+
+    func replayApply(_ op: Op) {
+        applyFillRegion(at: op.point, op.paint, op.tool)
+        rebuild()
+    }
+
     /// Scatter a handful of animated twinkle anchors across the glittered region.
-    private func addAnchors(_ region: [Int], paint paintStyle: Paint) -> Int {
+    private func addAnchors(_ region: [Int], paint paintStyle: Paint) {
         let colors = glitterStarColors(paintStyle)
         var rng = SystemRandomNumberGenerator()
         let count = max(5, min(70, region.count / 5500))
@@ -149,7 +180,6 @@ final class FloodFillModel: ObservableObject {
                 size: CGFloat.random(in: 0.006...0.013, using: &rng),
                 phase: Double.random(in: 0..<6.28, using: &rng)))
         }
-        return count
     }
 
     /// Fill a region with a vertical gradient of the given colours.
@@ -234,14 +264,9 @@ final class FloodFillModel: ObservableObject {
     }
 
     func undo() {
-        guard let step = undoStack.popLast() else { return }
-        for (idx, old) in step.pixels {
-            let o = idx * 4
-            paint[o] = old.0; paint[o+1] = old.1; paint[o+2] = old.2; paint[o+3] = old.3
-        }
-        if step.anchorsAdded > 0 {
-            anchors.removeLast(min(step.anchorsAdded, anchors.count))
-        }
+        guard let op = ops.popLast() else { return }
+        redoOps.append(op)
+        rebuildFromOps(ops)
         rebuild()
         Haptics.tap()
     }
@@ -249,7 +274,8 @@ final class FloodFillModel: ObservableObject {
     func clear() {
         guard hasPaint else { return }
         for i in paint.indices { paint[i] = 0 }
-        undoStack.removeAll()
+        ops.removeAll()
+        redoOps.removeAll()
         anchors.removeAll()
         rebuild()
         Haptics.tap()
@@ -289,7 +315,7 @@ final class FloodFillModel: ObservableObject {
     }
 
     private func rebuild() {
-        hasPaint = !undoStack.isEmpty
+        hasPaint = !ops.isEmpty
         paint.withUnsafeMutableBytes { raw in
             if let ctx = CGContext(data: raw.baseAddress, width: w, height: h,
                                    bitsPerComponent: 8, bytesPerRow: w * 4,
@@ -346,6 +372,7 @@ struct ImageColoringScreen: View {
     @State private var savedAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
+    @State private var isReplaying = false
 
     init(page: ImagePage) {
         self.page = page
@@ -355,6 +382,7 @@ struct ImageColoringScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             ImageColoringCanvas(model: model, selectedPaint: selectedPaint, tool: tool)
+                .allowsHitTesting(!isReplaying)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -363,7 +391,10 @@ struct ImageColoringScreen: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
-            ToolBar(tool: $tool, onUndo: model.undo, onClear: model.clear)
+            ToolBar(tool: $tool, onUndo: model.undo, onRedo: model.redo,
+                    onClear: model.clear, onReplay: replay,
+                    canUndo: model.canUndo, canRedo: model.canRedo,
+                    canReplay: model.canReplay, isReplaying: isReplaying)
                 .padding(.vertical, 10)
 
             PaletteBar(selectedPaint: $selectedPaint, selectedSwatchID: $selectedSwatchID)
@@ -399,6 +430,21 @@ struct ImageColoringScreen: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(alertMessage)
+        }
+    }
+
+    private func replay() {
+        let ops = model.replayOps()
+        guard !ops.isEmpty, !isReplaying else { return }
+        isReplaying = true
+        model.clearCanvasForReplay()
+        Task { @MainActor in
+            for op in ops {
+                model.replayApply(op)
+                Haptics.tap()
+                try? await Task.sleep(nanoseconds: 320_000_000)
+            }
+            isReplaying = false
         }
     }
 

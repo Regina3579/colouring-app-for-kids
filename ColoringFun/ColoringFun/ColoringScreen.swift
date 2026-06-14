@@ -8,7 +8,8 @@ struct ColoringScreen: View {
     let page: ColoringPage
 
     @State private var fills: [Int: Fill] = [:]
-    @State private var history: [(Int, Fill?)] = []
+    @State private var undoStack: [ColorStep] = []
+    @State private var redoStack: [ColorStep] = []
     @State private var selectedPaint: Paint = Palette.defaultPaint
     @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
@@ -17,6 +18,7 @@ struct ColoringScreen: View {
     @State private var savedAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
+    @State private var isReplaying = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,7 +26,11 @@ struct ColoringScreen: View {
                                selectedPaint: selectedPaint,
                                tool: tool,
                                fills: $fills,
-                               history: $history)
+                               onChange: { id, old, new in
+                                   undoStack.append(ColorStep(id: id, old: old, new: new))
+                                   redoStack.removeAll()
+                               })
+                .allowsHitTesting(!isReplaying)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -33,7 +39,9 @@ struct ColoringScreen: View {
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
-            ToolBar(tool: $tool, onUndo: undo, onClear: clearAll)
+            ToolBar(tool: $tool, onUndo: undo, onRedo: redo, onClear: clearAll, onReplay: replay,
+                    canUndo: !undoStack.isEmpty, canRedo: !redoStack.isEmpty,
+                    canReplay: !undoStack.isEmpty, isReplaying: isReplaying)
                 .padding(.vertical, 10)
 
             PaletteBar(selectedPaint: $selectedPaint, selectedSwatchID: $selectedSwatchID)
@@ -106,63 +114,110 @@ struct ColoringScreen: View {
     }
 
     private func undo() {
-        guard let (id, previous) = history.popLast() else { return }
-        fills[id] = previous
+        guard let step = undoStack.popLast() else { return }
+        fills[step.id] = step.old
+        redoStack.append(step)
+        Haptics.tap()
+    }
+
+    private func redo() {
+        guard let step = redoStack.popLast() else { return }
+        fills[step.id] = step.new
+        undoStack.append(step)
         Haptics.tap()
     }
 
     private func clearAll() {
         guard !fills.isEmpty else { return }
         fills = [:]
-        history = []
+        undoStack = []
+        redoStack = []
         Haptics.tap()
+    }
+
+    /// Replays the colouring step by step from a blank picture.
+    private func replay() {
+        let steps = undoStack
+        guard !steps.isEmpty, !isReplaying else { return }
+        isReplaying = true
+        fills = [:]
+        Task { @MainActor in
+            for step in steps {
+                fills[step.id] = step.new
+                Haptics.tap()
+                try? await Task.sleep(nanoseconds: 320_000_000)
+            }
+            isReplaying = false
+        }
     }
 }
 
-// MARK: - Tool buttons + undo / clear
+/// One colouring step for undo / redo / replay.
+struct ColorStep {
+    let id: Int
+    let old: Fill?
+    let new: Fill?
+}
+
+// MARK: - Tool buttons + undo / redo / replay / clear
 
 struct ToolBar: View {
     @Binding var tool: Tool
     let onUndo: () -> Void
+    var onRedo: () -> Void = {}
     let onClear: () -> Void
+    var onReplay: () -> Void = {}
+    var canUndo = true
+    var canRedo = false
+    var canReplay = false
+    var isReplaying = false
+
+    private let blue = Color(red: 0.42, green: 0.55, blue: 0.95)
+    private let green = Color(red: 0.30, green: 0.72, blue: 0.45)
+    private let red = Color(red: 0.98, green: 0.45, blue: 0.45)
 
     var body: some View {
-        HStack(spacing: 12) {
-            ForEach(Tool.allCases) { t in
-                Button { tool = t } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: t.icon).font(.title2)
-                        Text(t.title).font(.caption2.bold())
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 9) {
+                ForEach(Tool.allCases) { t in
+                    Button { tool = t } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: t.icon).font(.title3)
+                            Text(t.title).font(.caption2.bold())
+                        }
+                        .frame(width: 54, height: 54)
+                        .foregroundStyle(tool == t ? .white : Color(red: 0.32, green: 0.30, blue: 0.45))
+                        .background(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(tool == t ? blue : .white)
+                        )
+                        .shadow(color: .black.opacity(0.12), radius: 3, y: 2)
                     }
-                    .frame(width: 62, height: 56)
-                    .foregroundStyle(tool == t ? .white : Color(red: 0.32, green: 0.30, blue: 0.45))
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(tool == t ? Color(red: 0.42, green: 0.55, blue: 0.95) : .white)
-                    )
-                    .shadow(color: .black.opacity(0.12), radius: 3, y: 2)
+                    .buttonStyle(.plain)
+                    .disabled(isReplaying)
                 }
-                .buttonStyle(.plain)
+
+                roundButton("arrow.uturn.backward", blue, onUndo, enabled: canUndo && !isReplaying)
+                roundButton("arrow.uturn.forward", blue, onRedo, enabled: canRedo && !isReplaying)
+                roundButton("play.fill", green, onReplay, enabled: canReplay && !isReplaying)
+                roundButton("trash", red, onClear, enabled: !isReplaying)
             }
-
-            Spacer(minLength: 4)
-
-            roundButton(system: "arrow.uturn.backward", tint: Color(red: 0.42, green: 0.55, blue: 0.95), action: onUndo)
-            roundButton(system: "trash", tint: Color(red: 0.98, green: 0.45, blue: 0.45), action: onClear)
+            .padding(.horizontal, 14)
         }
-        .padding(.horizontal, 14)
     }
 
-    private func roundButton(system: String, tint: Color, action: @escaping () -> Void) -> some View {
+    private func roundButton(_ system: String, _ tint: Color, _ action: @escaping () -> Void,
+                             enabled: Bool) -> some View {
         Button(action: action) {
             Image(systemName: system)
                 .font(.title3.bold())
                 .foregroundStyle(.white)
-                .frame(width: 50, height: 56)
-                .background(RoundedRectangle(cornerRadius: 16).fill(tint))
+                .frame(width: 46, height: 54)
+                .background(RoundedRectangle(cornerRadius: 15).fill(tint.opacity(enabled ? 1 : 0.35)))
                 .shadow(color: .black.opacity(0.12), radius: 3, y: 2)
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 

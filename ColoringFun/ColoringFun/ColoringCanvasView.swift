@@ -141,8 +141,8 @@ struct ColoringCanvasView: View {
     let tool: Tool
 
     @Binding var fills: [Int: Fill]
-    /// Records (regionID, previousFill) so a single Undo can step back.
-    @Binding var history: [(Int, Fill?)]
+    /// Reports each change (regionID, previousFill, newFill) for undo/redo/replay.
+    let onChange: (Int, Fill?, Fill?) -> Void
 
     var body: some View {
         ColoringArtwork(page: page, fills: fills)
@@ -161,9 +161,9 @@ struct ColoringCanvasView: View {
         guard let design = layout.toDesign(pc) else { return }
         guard let region = page.regions.last(where: { $0.path.contains(design) }) else { return }
         let newFill: Fill? = (tool == .eraser) ? nil : Fill(paint: selectedPaint, tool: tool)
-        if fills[region.id] == newFill { return }
-        history.append((region.id, fills[region.id]))
-        if history.count > 50 { history.removeFirst() }
+        let old = fills[region.id]
+        if old == newFill { return }
+        onChange(region.id, old, newFill)
         fills[region.id] = newFill
         Haptics.tap()
     }
