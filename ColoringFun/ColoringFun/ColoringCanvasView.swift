@@ -61,8 +61,9 @@ struct ColoringCanvasView: View {
             let alpha = fill.tool == .crayon ? 0.9 : 1.0
             ctx.fill(p, with: shading(for: fill.paint, in: p.boundingRect, alpha: alpha))
             if fill.tool == .crayon { drawCrayon(p, in: &ctx, layout: layout) }
-            if fill.tool == .glitter || fill.paint.isGlitter {
-                drawGlitter(p, id: region.id, color: fill.paint.colors.first ?? .white,
+            if fill.tool == .glitter || fill.paint.sparkles {
+                let pal = glitterPalettes(for: fill.paint)
+                drawGlitter(p, id: region.id, grain: pal.grain, star: pal.star,
                             in: &ctx, layout: layout)
             }
         } else {
@@ -84,7 +85,22 @@ struct ColoringCanvasView: View {
             return .linearGradient(Gradient(colors: colors.map { $0.opacity(alpha) }),
                                    startPoint: CGPoint(x: bbox.midX, y: bbox.minY),
                                    endPoint: CGPoint(x: bbox.midX, y: bbox.maxY))
+        case .holographic:
+            return .linearGradient(Gradient(colors: Holo.base),
+                                   startPoint: CGPoint(x: bbox.minX, y: bbox.minY),
+                                   endPoint: CGPoint(x: bbox.maxX, y: bbox.maxY))
         }
+    }
+
+    /// Grain and star sparkle palettes for a paint.
+    private func glitterPalettes(for paint: Paint) -> (grain: [Color], star: [Color]) {
+        if paint.isHolographic {
+            return (Holo.sparkle + [.white, .white], Holo.sparkle + [.white])
+        }
+        let base = paint.colors.first ?? .white
+        let gold = Color(red: 1.0, green: 0.86, blue: 0.35)
+        return ([.white, .white, blend(base, .white, 0.7), gold, blend(base, .white, 0.25)],
+                [.white, gold])
     }
 
     /// Waxy crayon look: soft diagonal hatching clipped to the region.
@@ -105,28 +121,25 @@ struct ColoringCanvasView: View {
         }
     }
 
-    /// Shimmering glitter: dense fine grains in tinted colours plus a few
-    /// bright shining star-sparkles with a soft glow. Stable per region.
-    private func drawGlitter(_ p: Path, id: Int, color: Color,
+    /// Shimmering glitter: dense fine grains plus a few bright shining
+    /// star-sparkles with a soft glow. Grain/star colours come from the
+    /// palette (tinted for colour glitter, rainbow for holographic).
+    private func drawGlitter(_ p: Path, id: Int, grain: [Color], star: [Color],
                              in ctx: inout GraphicsContext, layout: Layout) {
         let b = p.boundingRect
-        guard b.width > 0, b.height > 0 else { return }
-        let gold = Color(red: 1.0, green: 0.86, blue: 0.35)
-        let light = blend(color, .white, 0.7)
-        let deep = blend(color, .white, 0.25)
-        let grainColors = [Color.white, .white, light, gold, deep]
+        guard b.width > 0, b.height > 0, !grain.isEmpty, !star.isEmpty else { return }
 
         ctx.drawLayer { layer in
             layer.clip(to: p)
             var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(id)) &* 0x9E3779B1 &+ 1)
 
-            // Fine glitter grains — lots of tiny tinted specks.
+            // Fine glitter grains — lots of tiny specks.
             let grains = max(80, min(2200, Int(b.width * b.height / 150)))
             for _ in 0..<grains {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
                 let py = b.minY + CGFloat(rng.unit()) * b.height
                 let r = (0.5 + CGFloat(rng.unit()) * 1.5) * layout.scale
-                let c = grainColors[Int(rng.unit() * Double(grainColors.count)) % grainColors.count]
+                let c = grain[Int(rng.unit() * Double(grain.count)) % grain.count]
                 layer.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
                            with: .color(c.opacity(0.5 + rng.unit() * 0.5)))
             }
@@ -138,12 +151,13 @@ struct ColoringCanvasView: View {
                 let py = b.minY + CGFloat(rng.unit()) * b.height
                 let s = (3.5 + CGFloat(rng.unit()) * 4.5) * layout.scale
                 let c = CGPoint(x: px, y: py)
+                let inner = star[Int(rng.unit() * Double(star.count)) % star.count]
                 layer.fill(Path(ellipseIn: CGRect(x: px - s * 1.6, y: py - s * 1.6,
                                                   width: s * 3.2, height: s * 3.2)),
-                           with: .radialGradient(Gradient(colors: [.white.opacity(0.55), .clear]),
+                           with: .radialGradient(Gradient(colors: [inner.opacity(0.5), .clear]),
                                                  center: c, startRadius: 0, endRadius: s * 1.6))
-                layer.fill(star(at: c, size: s), with: .color(.white))
-                layer.fill(star(at: c, size: s * 0.5), with: .color(gold.opacity(0.95)))
+                layer.fill(self.star(at: c, size: s), with: .color(.white))
+                layer.fill(self.star(at: c, size: s * 0.5), with: .color(inner.opacity(0.95)))
             }
         }
     }

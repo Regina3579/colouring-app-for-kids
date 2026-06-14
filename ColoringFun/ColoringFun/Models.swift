@@ -44,22 +44,50 @@ enum Paint: Equatable {
     case solid(Color)
     case gradient([Color])
     case glitter(Color)
+    case holographic
 
     var colors: [Color] {
         switch self {
         case .solid(let c): return [c]
         case .gradient(let cs): return cs
         case .glitter(let c): return [c]
+        case .holographic: return Holo.base
         }
     }
     var isGradient: Bool {
         if case .gradient = self { return true }
         return false
     }
-    var isGlitter: Bool {
-        if case .glitter = self { return true }
+    /// True for any paint that should render sparkles.
+    var sparkles: Bool {
+        switch self { case .glitter, .holographic: return true; default: return false }
+    }
+    var isHolographic: Bool {
+        if case .holographic = self { return true }
         return false
     }
+}
+
+/// Colour palettes for the iridescent holographic glitter.
+enum Holo {
+    /// Soft pearlescent base the area is filled with.
+    static let base: [Color] = [
+        Color(red: 1.00, green: 0.86, blue: 0.93),
+        Color(red: 0.88, green: 0.86, blue: 1.00),
+        Color(red: 0.82, green: 0.96, blue: 1.00),
+        Color(red: 0.86, green: 1.00, blue: 0.92),
+        Color(red: 1.00, green: 0.98, blue: 0.83),
+        Color(red: 1.00, green: 0.90, blue: 0.86),
+    ]
+    /// Vivid iridescent sparkle colours.
+    static let sparkle: [Color] = [
+        Color(red: 0.30, green: 0.95, blue: 0.95),
+        Color(red: 1.00, green: 0.42, blue: 0.85),
+        Color(red: 0.65, green: 0.45, blue: 1.00),
+        Color(red: 1.00, green: 0.85, blue: 0.30),
+        Color(red: 0.40, green: 0.95, blue: 0.62),
+        Color(red: 1.00, green: 0.60, blue: 0.42),
+    ]
 }
 
 // MARK: - What a child painted into one region
@@ -196,6 +224,7 @@ enum Palette {
     ]
 
     static let glitters: [Swatch] = [
+        Swatch(id: "gl_holo",   paint: .holographic, name: "Holographic"),
         Swatch(id: "gl_pink",   paint: .glitter(c(1.00, 0.45, 0.75)), name: "Pink Glitter"),
         Swatch(id: "gl_rose",   paint: .glitter(c(0.95, 0.30, 0.45)), name: "Rose Glitter"),
         Swatch(id: "gl_purple", paint: .glitter(c(0.65, 0.40, 0.92)), name: "Purple Glitter"),

@@ -158,6 +158,16 @@ struct SwatchShape: View {
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(.white)
             }
+        case .holographic:
+            ZStack {
+                Circle().fill(AngularGradient(colors: Holo.sparkle + [Holo.sparkle[0]],
+                                              center: .center))
+                Circle().fill(RadialGradient(colors: [.white.opacity(0.6), .clear],
+                                             center: .center, startRadius: 1, endRadius: 26))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+            }
         }
     }
 }

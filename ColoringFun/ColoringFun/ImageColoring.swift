@@ -93,18 +93,14 @@ final class FloodFillModel: ObservableObject {
                 let (r, g, b) = rgb(color)
                 for idx in region { let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255 }
             case .gradient(let colors):
-                let stops = colors.map { rgb($0) }
-                var minY = Int.max, maxY = Int.min
-                for idx in region { let yy = idx / w; if yy < minY { minY = yy }; if yy > maxY { maxY = yy } }
-                let span = Double(max(1, maxY - minY))
-                for idx in region {
-                    let t = Double(idx / w - minY) / span
-                    let (r, g, b) = sample(stops, t)
-                    let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255
-                }
+                gradientFill(region, colors)
+            case .holographic:
+                gradientFill(region, Holo.base)
             }
-            if tool == .glitter || paintStyle.isGlitter {
-                addSparkles(region, base: rgb(paintStyle.colors.first ?? .white))
+            if tool == .glitter || paintStyle.sparkles {
+                let stars: [(UInt8, UInt8, UInt8)] = paintStyle.isHolographic
+                    ? Holo.sparkle.map { rgb($0) } : [(255, 255, 255), (255, 216, 90)]
+                addSparkles(region, tints: sparkleTints(paintStyle), stars: stars)
             }
         }
 
@@ -112,6 +108,33 @@ final class FloodFillModel: ObservableObject {
         if undoStack.count > 30 { undoStack.removeFirst() }
         rebuild()
         Haptics.tap()
+    }
+
+    /// Fill a region with a vertical gradient of the given colours.
+    private func gradientFill(_ region: [Int], _ colors: [Color]) {
+        let stops = colors.map { rgb($0) }
+        var minY = Int.max, maxY = Int.min
+        for idx in region { let yy = idx / w; if yy < minY { minY = yy }; if yy > maxY { maxY = yy } }
+        let span = Double(max(1, maxY - minY))
+        for idx in region {
+            let t = Double(idx / w - minY) / span
+            let (r, g, b) = sample(stops, t)
+            let o = idx * 4; paint[o] = r; paint[o+1] = g; paint[o+2] = b; paint[o+3] = 255
+        }
+    }
+
+    /// Grain colours for the sparkles (tinted for colour glitter, rainbow for holographic).
+    private func sparkleTints(_ paint: Paint) -> [(UInt8, UInt8, UInt8)] {
+        if paint.isHolographic {
+            return Holo.sparkle.map { rgb($0) } + [(255, 255, 255), (255, 255, 255)]
+        }
+        let base = rgb(paint.colors.first ?? .white)
+        func toward(_ t: Double) -> (UInt8, UInt8, UInt8) {
+            (UInt8(Double(base.0) + (255 - Double(base.0)) * t),
+             UInt8(Double(base.1) + (255 - Double(base.1)) * t),
+             UInt8(Double(base.2) + (255 - Double(base.2)) * t))
+        }
+        return [(255, 255, 255), (255, 255, 255), toward(0.7), (255, 216, 90), toward(0.3)]
     }
 
     /// Linear interpolation across the gradient stops at position t in [0, 1].
@@ -126,19 +149,13 @@ final class FloodFillModel: ObservableObject {
         return (mix(a.0, b.0), mix(a.1, b.1), mix(a.2, b.2))
     }
 
-    private func addSparkles(_ region: [Int], base: (UInt8, UInt8, UInt8)) {
+    private func addSparkles(_ region: [Int], tints: [(UInt8, UInt8, UInt8)],
+                             stars: [(UInt8, UInt8, UInt8)]) {
         var rng = SystemRandomNumberGenerator()
         typealias RGB = (UInt8, UInt8, UInt8)
-        func toward(_ c: RGB, white t: Double) -> RGB {
-            (UInt8(Double(c.0) + (255 - Double(c.0)) * t),
-             UInt8(Double(c.1) + (255 - Double(c.1)) * t),
-             UInt8(Double(c.2) + (255 - Double(c.2)) * t))
-        }
         let white: RGB = (255, 255, 255)
-        let gold: RGB = (255, 216, 90)
-        let light = toward(base, white: 0.7)
-        let deep = toward(base, white: 0.3)
-        let tints = [white, white, light, gold, deep]
+        let grainColors = tints.isEmpty ? [white] : tints
+        let starColors = stars.isEmpty ? [white] : stars
 
         // Only paint pixels belonging to this region (visited == gen), so undo stays exact.
         func setpx(_ x: Int, _ y: Int, _ c: RGB) {
@@ -151,25 +168,26 @@ final class FloodFillModel: ObservableObject {
         func block(_ x: Int, _ y: Int, _ s: Int, _ c: RGB) {
             for dy in 0..<s { for dx in 0..<s { setpx(x + dx, y + dy, c) } }
         }
-        func sparkle(_ x: Int, _ y: Int, _ L: Int) {
+        func sparkle(_ x: Int, _ y: Int, _ L: Int, _ center: RGB) {
             for d in -L...L { setpx(x + d, y, white); setpx(x, y + d, white) }
             let hh = L / 2
             for d in -hh...hh { setpx(x + d, y + d, white); setpx(x + d, y - d, white) }
-            setpx(x, y, gold)
+            setpx(x, y, center)
         }
 
-        // Dense fine grains (2px blocks) in tinted colours.
+        // Dense fine grains (2px blocks).
         let grains = max(20, region.count / 90)
         for _ in 0..<grains {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
-            let c = tints[Int.random(in: 0..<tints.count, using: &rng)]
+            let c = grainColors[Int.random(in: 0..<grainColors.count, using: &rng)]
             block(idx % w, idx / w, 2, c)
         }
-        // A few bright shining star-sparkles.
-        let stars = max(3, region.count / 3500)
-        for _ in 0..<stars {
+        // A few bright shining star-sparkles with coloured centres.
+        let starCount = max(3, region.count / 3500)
+        for _ in 0..<starCount {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
-            sparkle(idx % w, idx / w, 3 + Int.random(in: 0...2, using: &rng))
+            let center = starColors[Int.random(in: 0..<starColors.count, using: &rng)]
+            sparkle(idx % w, idx / w, 3 + Int.random(in: 0...2, using: &rng), center)
         }
     }
 
