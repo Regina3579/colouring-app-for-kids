@@ -19,7 +19,7 @@ enum Categories {
                  thumbnail: "cat_unicorn"),
         Category(id: "princess", name: "Princess", emoji: "👸",
                  tint: Color(red: 1.0, green: 0.82, blue: 0.90),
-                 items: princessImageItems + PrincessPages.all.map { .vector($0) },
+                 items: princessImageItems,
                  thumbnail: "cat_princess"),
         Category(id: "cars", name: "Cars", emoji: "🚗",
                  tint: Color(red: 0.82, green: 0.88, blue: 0.96), items: carItems,
@@ -157,7 +157,6 @@ enum Categories {
 
     // Image-based princess pictures (original characters only).
     private static let princessImageSpecs: [(String, String, String, Color)] = [
-        ("princess_snow", "Snow Princess", "👸", Color(red: 0.84, green: 0.92, blue: 1.0)),
         ("princess_mermaid", "Mermaid Princess", "🧜‍♀️", Color(red: 0.78, green: 0.92, blue: 0.96)),
     ]
 
