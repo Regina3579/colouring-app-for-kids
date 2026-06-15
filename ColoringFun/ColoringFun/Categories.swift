@@ -126,6 +126,7 @@ enum Categories {
         ("car_taxi", "Taxi", "🚕", Color(red: 1.0, green: 0.92, blue: 0.70)),
         ("car_jeep", "Jeep", "🚙", Color(red: 0.86, green: 0.86, blue: 0.78)),
         ("car_family", "Family Car", "🚐", Color(red: 0.84, green: 0.90, blue: 0.96)),
+        ("car_electric", "Electric Car", "🔋", Color(red: 0.80, green: 0.94, blue: 0.84)),
     ]
 
     private static let carItems: [CategoryItem] = carSpecs.map {
