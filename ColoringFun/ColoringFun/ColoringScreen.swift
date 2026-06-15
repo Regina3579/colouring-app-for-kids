@@ -13,8 +13,7 @@ struct ColoringScreen: View {
     @State private var selectedPaint: Paint = Palette.defaultPaint
     @State private var selectedSwatchID: String = Palette.defaultID
     @State private var tool: Tool = .bucket
-    @State private var shareImage: UIImage?
-    @State private var showShare = false
+    @State private var shareItem: ShareItem?
     @State private var savedAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
@@ -72,8 +71,8 @@ struct ColoringScreen: View {
                 }
             }
         }
-        .sheet(isPresented: $showShare) {
-            if let shareImage { ActivityView(items: [shareImage]) }
+        .sheet(item: $shareItem) { item in
+            ActivityView(items: [item.image])
         }
         .alert(alertTitle, isPresented: $savedAlert) {
             Button("OK", role: .cancel) {}
@@ -111,8 +110,7 @@ struct ColoringScreen: View {
 
     private func share() {
         guard let img = renderArtwork() else { return }
-        shareImage = img
-        showShare = true
+        shareItem = ShareItem(image: img)
     }
 
     private func undo() {

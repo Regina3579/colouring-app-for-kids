@@ -3,6 +3,13 @@ import SwiftUI
 import UIKit
 #endif
 
+/// An image ready to share, used with `.sheet(item:)` so the share sheet only
+/// presents once the image actually exists (avoids the blank first-tap sheet).
+struct ShareItem: Identifiable {
+    let id = UUID()
+    let image: UIImage
+}
+
 /// Wraps the system share sheet (social media, Messages, AirDrop, Print, Save…).
 struct ActivityView: UIViewControllerRepresentable {
     let items: [Any]

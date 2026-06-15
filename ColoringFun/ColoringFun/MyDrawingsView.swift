@@ -71,7 +71,7 @@ private struct DrawingCard: View {
 struct DrawingDetailView: View {
     let drawing: SavedDrawing
     @Environment(\.dismiss) private var dismiss
-    @State private var showShare = false
+    @State private var shareItem: ShareItem?
     @State private var confirmDelete = false
 
     var body: some View {
@@ -88,7 +88,11 @@ struct DrawingDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button { showShare = true } label: {
+                Button {
+                    if let img = DrawingsStore.shared.image(drawing) {
+                        shareItem = ShareItem(image: img)
+                    }
+                } label: {
                     Image(systemName: "square.and.arrow.up.fill").cuteCircle(Candy.blue)
                 }
                 Button(role: .destructive) { confirmDelete = true } label: {
@@ -96,10 +100,8 @@ struct DrawingDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showShare) {
-            if let img = DrawingsStore.shared.image(drawing) {
-                ActivityView(items: [img])
-            }
+        .sheet(item: $shareItem) { item in
+            ActivityView(items: [item.image])
         }
         .alert("Delete this drawing?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) {
