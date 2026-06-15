@@ -188,11 +188,11 @@ struct ToolBar: View {
             HStack(spacing: 10) {
                 ForEach(Tool.allCases) { t in
                     Button { tool = t } label: {
-                        VStack(spacing: 3) {
-                            Image(systemName: t.icon).font(.title2)
+                        VStack(spacing: 2) {
+                            Text(t.emoji).font(.system(size: 24))
                             Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
                         }
-                        .foregroundStyle(.white)
                         .frame(width: 58, height: 58)
                         .background(
                             RoundedRectangle(cornerRadius: 19)

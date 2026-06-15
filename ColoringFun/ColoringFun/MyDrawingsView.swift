@@ -35,19 +35,19 @@ struct MyDrawingsView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "paintpalette.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(inkColor.opacity(0.5))
+        VStack(spacing: 16) {
+            CrayonRow()
+                .frame(height: 90)
             Text("No drawings yet")
-                .font(.title3.bold()).foregroundStyle(inkColor)
+                .font(.system(size: 22, weight: .heavy, design: .rounded))
+                .foregroundStyle(inkColor)
             Text("Color a picture, then tap Save → \"Save to My Drawings.\"")
-                .font(.subheadline)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(inkColor.opacity(0.7))
                 .padding(.horizontal, 40)
         }
-        .padding(.top, 90)
+        .padding(.top, 80)
     }
 }
 

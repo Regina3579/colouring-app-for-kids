@@ -28,6 +28,16 @@ enum Tool: String, CaseIterable, Identifiable {
         case .eraser:  return "Eraser"
         }
     }
+
+    /// Cute emoji shown on the tool button.
+    var emoji: String {
+        switch self {
+        case .bucket:  return "🪣"
+        case .crayon:  return "🖍️"
+        case .glitter: return "✨"
+        case .eraser:  return "🧽"
+        }
+    }
 }
 
 // MARK: - A single fillable part of a picture
