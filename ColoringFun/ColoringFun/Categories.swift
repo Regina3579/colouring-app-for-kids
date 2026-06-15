@@ -118,9 +118,14 @@ enum Categories {
     // Car outline pictures (tap to flood-fill).
     private static let carSpecs: [(String, String, String, Color)] = [
         ("car_race", "Race Car", "🏎️", Color(red: 1.0, green: 0.84, blue: 0.80)),
+        ("car_sports", "Sports Car", "🚗", Color(red: 1.0, green: 0.82, blue: 0.82)),
         ("car_monster", "Monster Truck", "🚚", Color(red: 0.84, green: 0.90, blue: 0.82)),
         ("car_police", "Police Car", "🚓", Color(red: 0.82, green: 0.88, blue: 0.98)),
         ("car_convertible", "Convertible", "🚗", Color(red: 1.0, green: 0.90, blue: 0.78)),
+        ("car_beetle", "Beetle", "🚙", Color(red: 0.84, green: 0.92, blue: 0.84)),
+        ("car_taxi", "Taxi", "🚕", Color(red: 1.0, green: 0.92, blue: 0.70)),
+        ("car_jeep", "Jeep", "🚙", Color(red: 0.86, green: 0.86, blue: 0.78)),
+        ("car_family", "Family Car", "🚐", Color(red: 0.84, green: 0.90, blue: 0.96)),
     ]
 
     private static let carItems: [CategoryItem] = carSpecs.map {
