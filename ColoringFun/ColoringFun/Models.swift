@@ -197,6 +197,7 @@ struct Swatch: Identifiable, Equatable {
     let id: String
     let paint: Paint
     let name: String
+    var isPro: Bool = false
 }
 
 enum Palette {
@@ -274,7 +275,35 @@ enum Palette {
         Swatch(id: "gl_silver", paint: .glitter(c(0.80, 0.82, 0.88)), name: "Silver Glitter"),
     ]
 
-    static let swatches: [Swatch] = solids + gradients + glitters
+    /// Elegant pastel colours — a Pro palette.
+    static let pastels: [Swatch] = [
+        Swatch(id: "ps_blush",   paint: .solid(c(1.00, 0.89, 0.89)), name: "Blush", isPro: true),
+        Swatch(id: "ps_rose",    paint: .solid(c(0.98, 0.83, 0.85)), name: "Rose Quartz", isPro: true),
+        Swatch(id: "ps_petal",   paint: .solid(c(0.99, 0.78, 0.82)), name: "Petal", isPro: true),
+        Swatch(id: "ps_peach",   paint: .solid(c(1.00, 0.85, 0.74)), name: "Peach", isPro: true),
+        Swatch(id: "ps_apricot", paint: .solid(c(1.00, 0.81, 0.67)), name: "Apricot", isPro: true),
+        Swatch(id: "ps_coral",   paint: .solid(c(1.00, 0.77, 0.72)), name: "Soft Coral", isPro: true),
+        Swatch(id: "ps_butter",  paint: .solid(c(1.00, 0.94, 0.76)), name: "Butter", isPro: true),
+        Swatch(id: "ps_lemon",   paint: .solid(c(0.98, 0.97, 0.80)), name: "Lemon Cream", isPro: true),
+        Swatch(id: "ps_vanilla", paint: .solid(c(0.98, 0.95, 0.86)), name: "Vanilla", isPro: true),
+        Swatch(id: "ps_honey",   paint: .solid(c(0.90, 0.96, 0.81)), name: "Honeydew", isPro: true),
+        Swatch(id: "ps_mint",    paint: .solid(c(0.80, 0.95, 0.84)), name: "Mint", isPro: true),
+        Swatch(id: "ps_seafoam", paint: .solid(c(0.76, 0.94, 0.88)), name: "Seafoam", isPro: true),
+        Swatch(id: "ps_aqua",    paint: .solid(c(0.78, 0.93, 0.94)), name: "Aqua Mist", isPro: true),
+        Swatch(id: "ps_sky",     paint: .solid(c(0.80, 0.91, 0.99)), name: "Baby Sky", isPro: true),
+        Swatch(id: "ps_powder",  paint: .solid(c(0.84, 0.89, 0.98)), name: "Powder Blue", isPro: true),
+        Swatch(id: "ps_peri",    paint: .solid(c(0.81, 0.83, 0.98)), name: "Periwinkle", isPro: true),
+        Swatch(id: "ps_lavender",paint: .solid(c(0.88, 0.83, 0.98)), name: "Lavender", isPro: true),
+        Swatch(id: "ps_lilac",   paint: .solid(c(0.91, 0.81, 0.96)), name: "Lilac", isPro: true),
+        Swatch(id: "ps_wisteria",paint: .solid(c(0.85, 0.79, 0.93)), name: "Wisteria", isPro: true),
+        Swatch(id: "ps_mauve",   paint: .solid(c(0.91, 0.81, 0.88)), name: "Mauve", isPro: true),
+        Swatch(id: "ps_rosewater",paint: .solid(c(0.98, 0.88, 0.92)), name: "Rosewater", isPro: true),
+        Swatch(id: "ps_sage",    paint: .solid(c(0.83, 0.89, 0.79)), name: "Sage", isPro: true),
+        Swatch(id: "ps_greige",  paint: .solid(c(0.90, 0.88, 0.83)), name: "Greige", isPro: true),
+        Swatch(id: "ps_cloud",   paint: .solid(c(0.91, 0.93, 0.97)), name: "Cloud", isPro: true),
+    ]
+
+    static let swatches: [Swatch] = solids + pastels + gradients + glitters
 
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }

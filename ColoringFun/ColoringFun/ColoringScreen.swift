@@ -244,15 +244,22 @@ struct ToolBar: View {
 struct PaletteBar: View {
     @Binding var selectedPaint: Paint
     @Binding var selectedSwatchID: String
+    @ObservedObject private var pro = ProStore.shared
+    @State private var showPro = false
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
                 ForEach(Palette.swatches) { swatch in
                     let selected = selectedSwatchID == swatch.id
+                    let locked = swatch.isPro && !pro.isUnlocked
                     Button {
-                        selectedPaint = swatch.paint
-                        selectedSwatchID = swatch.id
+                        if locked {
+                            showPro = true
+                        } else {
+                            selectedPaint = swatch.paint
+                            selectedSwatchID = swatch.id
+                        }
                     } label: {
                         SwatchShape(paint: swatch.paint)
                             .frame(width: 46, height: 46)
@@ -262,6 +269,8 @@ struct PaletteBar: View {
                                                 lineWidth: selected ? 3 : 0)
                                     .padding(-3)
                             )
+                            .overlay(lockBadge(locked))
+                            .opacity(locked ? 0.9 : 1)
                             .scaleEffect(selected ? 1.18 : 1.0)
                             .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
                             .animation(.spring(response: 0.3), value: selectedSwatchID)
@@ -271,6 +280,19 @@ struct PaletteBar: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 8)
+        }
+        .sheet(isPresented: $showPro) { ProUnlockView() }
+    }
+
+    @ViewBuilder private func lockBadge(_ locked: Bool) -> some View {
+        if locked {
+            Image(systemName: "crown.fill")
+                .font(.system(size: 11, weight: .black))
+                .foregroundStyle(.white)
+                .padding(4)
+                .background(Circle().fill(Candy.purple))
+                .overlay(Circle().stroke(.white, lineWidth: 1.5))
+                .offset(x: 16, y: -16)
         }
     }
 }
