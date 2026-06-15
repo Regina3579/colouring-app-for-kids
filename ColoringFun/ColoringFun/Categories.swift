@@ -19,9 +19,11 @@ enum Categories {
                  thumbnail: "cat_unicorn"),
         Category(id: "princess", name: "Princess", emoji: "👸",
                  tint: Color(red: 1.0, green: 0.82, blue: 0.90),
-                 items: PrincessPages.all.map { .vector($0) }),
+                 items: PrincessPages.all.map { .vector($0) },
+                 thumbnail: "cat_princess"),
         Category(id: "cars", name: "Cars", emoji: "🚗",
-                 tint: Color(red: 0.82, green: 0.88, blue: 0.96), items: carItems),
+                 tint: Color(red: 0.82, green: 0.88, blue: 0.96), items: carItems,
+                 thumbnail: "cat_cars"),
     ]
 
     // Real outline-image animals (tap to flood-fill).
