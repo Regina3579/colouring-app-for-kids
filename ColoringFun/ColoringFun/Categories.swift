@@ -23,6 +23,8 @@ enum Categories {
         Category(id: "cars", name: "Cars", emoji: "🚗",
                  tint: Color(red: 0.82, green: 0.88, blue: 0.96), items: carItems,
                  thumbnail: "cat_cars"),
+        Category(id: "transport", name: "Transport", emoji: "🚍",
+                 tint: Color(red: 1.0, green: 0.88, blue: 0.74), items: transportItems),
     ]
 
     // Real outline-image animals (tap to flood-fill).
@@ -130,6 +132,19 @@ enum Categories {
     ]
 
     private static let carItems: [CategoryItem] = carSpecs.map {
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+    }
+
+    // Transport outline pictures (tap to flood-fill).
+    private static let transportSpecs: [(String, String, String, Color)] = [
+        ("tr_firetruck", "Fire Truck", "🚒", Color(red: 1.0, green: 0.80, blue: 0.78)),
+        ("tr_icecream", "Ice Cream Truck", "🍦", Color(red: 1.0, green: 0.86, blue: 0.92)),
+        ("tr_schoolbus", "School Bus", "🚌", Color(red: 1.0, green: 0.92, blue: 0.70)),
+        ("tr_towtruck", "Tow Truck", "🛻", Color(red: 0.86, green: 0.90, blue: 0.80)),
+        ("tr_dumptruck", "Dump Truck", "🚛", Color(red: 1.0, green: 0.88, blue: 0.72)),
+    ]
+
+    private static let transportItems: [CategoryItem] = transportSpecs.map {
         .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
     }
 }
