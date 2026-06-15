@@ -131,8 +131,29 @@ final class FloodFillModel: ObservableObject {
                             intensity: style?.intensity ?? 1.0)
                 addAnchors(region, paint: paintStyle)
             }
+            if tool == .crayon { applyCrayonTexture(region) }
         }
         return true
+    }
+
+    /// Adds a waxy crayon look: soft diagonal streaks + light grain.
+    /// Deterministic, so undo/redo/replay reproduce it exactly.
+    private func applyCrayonTexture(_ region: [Int]) {
+        func lighten(_ v: UInt8, _ t: Double) -> UInt8 {
+            UInt8(min(255, Double(v) + (255 - Double(v)) * t))
+        }
+        for idx in region {
+            let x = idx % w, y = idx / w
+            let band = (x + y) % 13
+            var light = band < 3 ? 0.24 : (band < 5 ? 0.10 : 0.0)
+            let hash = (x &* 73856093) ^ (y &* 19349663)
+            if hash & 7 == 0 { light += 0.14 }     // waxy speckle
+            if light <= 0 { continue }
+            let o = idx * 4
+            paint[o] = lighten(paint[o], light)
+            paint[o + 1] = lighten(paint[o + 1], light)
+            paint[o + 2] = lighten(paint[o + 2], light)
+        }
     }
 
     // MARK: Undo / redo / replay
