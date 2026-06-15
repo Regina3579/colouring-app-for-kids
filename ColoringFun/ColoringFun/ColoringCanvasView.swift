@@ -25,6 +25,7 @@ struct ColoringArtwork: View {
                 }
             }
             VectorSparkleLayer(page: page, fills: fills)
+                .id(fills.values.filter { $0.tool == .glitter || $0.paint.sparkles }.count)
         }
         .background(Color.white)
     }

@@ -19,6 +19,11 @@ struct ColoringScreen: View {
     @State private var alertMessage = ""
     @State private var isReplaying = false
 
+    init(page: ColoringPage, initialFills: [Int: Fill] = [:]) {
+        self.page = page
+        _fills = State(initialValue: initialFills)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             ColoringCanvasView(page: page,
@@ -92,7 +97,8 @@ struct ColoringScreen: View {
 
     private func saveToDrawings() {
         guard let img = renderArtwork() else { return }
-        let ok = DrawingsStore.shared.save(img)
+        let state = DrawingState.vector(pageID: page.id, fills: fills)
+        let ok = DrawingsStore.shared.save(img, state: state)
         alertTitle = ok ? "Saved!" : "Couldn't Save"
         alertMessage = ok ? "Your drawing was added to My Drawings." : "Something went wrong saving."
         savedAlert = true

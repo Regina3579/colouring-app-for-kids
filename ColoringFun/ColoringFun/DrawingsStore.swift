@@ -37,13 +37,16 @@ final class DrawingsStore: ObservableObject {
             .sorted { $0.date > $1.date }
     }
 
-    /// Saves a finished picture; returns success.
+    /// Saves a finished picture (and optionally its editable state); returns success.
     @discardableResult
-    func save(_ image: UIImage) -> Bool {
+    func save(_ image: UIImage, state: DrawingState? = nil) -> Bool {
         guard let data = image.pngData() else { return false }
-        let name = "drawing-\(Int(Date().timeIntervalSince1970)).png"
+        let base = "drawing-\(Int(Date().timeIntervalSince1970 * 1000))"
         do {
-            try data.write(to: folder.appendingPathComponent(name))
+            try data.write(to: folder.appendingPathComponent(base + ".png"))
+            if let state, let json = try? JSONEncoder().encode(state) {
+                try? json.write(to: folder.appendingPathComponent(base + ".json"))
+            }
             reload()
             return true
         } catch {
@@ -55,8 +58,17 @@ final class DrawingsStore: ObservableObject {
         UIImage(contentsOfFile: drawing.url.path)
     }
 
+    /// The saved editable state for a drawing, if any.
+    func state(_ drawing: SavedDrawing) -> DrawingState? {
+        let jsonURL = drawing.url.deletingPathExtension().appendingPathExtension("json")
+        guard let data = try? Data(contentsOf: jsonURL) else { return nil }
+        return try? JSONDecoder().decode(DrawingState.self, from: data)
+    }
+
     func delete(_ drawing: SavedDrawing) {
         try? FileManager.default.removeItem(at: drawing.url)
+        let jsonURL = drawing.url.deletingPathExtension().appendingPathExtension("json")
+        try? FileManager.default.removeItem(at: jsonURL)
         reload()
     }
 }

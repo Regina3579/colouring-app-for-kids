@@ -74,13 +74,31 @@ struct DrawingDetailView: View {
     @State private var shareItem: ShareItem?
     @State private var confirmDelete = false
 
+    private var savedState: DrawingState? { DrawingsStore.shared.state(drawing) }
+
     var body: some View {
-        VStack {
+        VStack(spacing: 12) {
             if let img = DrawingsStore.shared.image(drawing) {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFit()
-                    .padding()
+                    .padding(.horizontal)
+            }
+            if canEdit {
+                NavigationLink {
+                    editDestination
+                } label: {
+                    Label("Edit", systemImage: "paintbrush.pointed.fill")
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: 220)
+                        .frame(height: 52)
+                        .background(LinearGradient(colors: [Candy.purple, Candy.pink],
+                                                   startPoint: .leading, endPoint: .trailing),
+                                    in: Capsule())
+                        .shadow(color: Candy.purple.opacity(0.4), radius: 4, y: 2)
+                }
+                .padding(.bottom, 10)
             }
         }
         .background(bgGradient.ignoresSafeArea())
@@ -109,6 +127,22 @@ struct DrawingDetailView: View {
                 dismiss()
             }
             Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private var canEdit: Bool {
+        guard let s = savedState else { return false }
+        return Categories.item(forID: s.pageID) != nil
+    }
+
+    @ViewBuilder private var editDestination: some View {
+        if let s = savedState, let item = Categories.item(forID: s.pageID) {
+            switch item {
+            case .vector(let page):
+                ColoringScreen(page: page, initialFills: s.fillsDict())
+            case .image(let page):
+                ImageColoringScreen(page: page, initialOps: s.floodOps())
+            }
         }
     }
 }

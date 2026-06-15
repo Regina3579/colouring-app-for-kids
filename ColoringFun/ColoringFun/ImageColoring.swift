@@ -31,7 +31,9 @@ final class FloodFillModel: ObservableObject {
     /// Animated twinkle anchors over glittered areas (normalized coords).
     @Published private(set) var anchors: [SparkleAnchor] = []
 
-    init(imageName: String, maxDim: Int = 640) {
+    func currentOps() -> [Op] { ops }
+
+    init(imageName: String, maxDim: Int = 640, initialOps: [Op] = []) {
         let img = UIImage(named: imageName) ?? FloodFillModel.blank()
         displayImage = img
         aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
@@ -68,6 +70,11 @@ final class FloodFillModel: ObservableObject {
         barrier = walls
         paint = [UInt8](repeating: 0, count: lw * lh * 4)
         visited = [Int32](repeating: 0, count: lw * lh)
+
+        // Restore a saved drawing's strokes, if provided.
+        for op in initialOps { applyFillRegion(at: op.point, op.paint, op.tool) }
+        ops = initialOps
+        rebuild()
     }
 
     private static func blank() -> UIImage {
@@ -364,6 +371,7 @@ struct ImageColoringCanvas: View {
             }
             Image(uiImage: model.displayImage).resizable().blendMode(.multiply)
             ImageSparkleLayer(anchors: model.anchors)
+                .id(model.anchors.count)
         }
         .aspectRatio(model.aspect, contentMode: .fit)
         .zoomableColoring { point, size, scale, offset in
@@ -394,9 +402,10 @@ struct ImageColoringScreen: View {
     @State private var alertMessage = ""
     @State private var isReplaying = false
 
-    init(page: ImagePage) {
+    init(page: ImagePage, initialOps: [FloodFillModel.Op] = []) {
         self.page = page
-        _model = StateObject(wrappedValue: FloodFillModel(imageName: page.imageName))
+        _model = StateObject(wrappedValue:
+            FloodFillModel(imageName: page.imageName, initialOps: initialOps))
     }
 
     var body: some View {
@@ -471,7 +480,8 @@ struct ImageColoringScreen: View {
     }
 
     private func saveToDrawings() {
-        let ok = DrawingsStore.shared.save(model.exportImage())
+        let state = DrawingState.image(pageID: page.id, ops: model.currentOps())
+        let ok = DrawingsStore.shared.save(model.exportImage(), state: state)
         alertTitle = ok ? "Saved!" : "Couldn't Save"
         alertMessage = ok ? "Your drawing was added to My Drawings." : "Something went wrong saving."
         savedAlert = true
