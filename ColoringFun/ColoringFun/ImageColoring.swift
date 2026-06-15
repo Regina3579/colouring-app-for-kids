@@ -22,6 +22,8 @@ final class FloodFillModel: ObservableObject {
     struct Op { let point: CGPoint; let paint: Paint; let tool: Tool }
     private var ops: [Op] = []
     private var redoOps: [Op] = []
+    /// Called after any edit (fill/undo/redo/clear) — used for auto-save.
+    var onStateChange: (() -> Void)?
     var canUndo: Bool { !ops.isEmpty }
     var canRedo: Bool { !redoOps.isEmpty }
     var canReplay: Bool { !ops.isEmpty }
@@ -104,6 +106,7 @@ final class FloodFillModel: ObservableObject {
         redoOps.removeAll()
         rebuild()
         Haptics.tap()
+        onStateChange?()
     }
 
     /// Paints the region at `pt` with the given paint/tool. Returns false if the
@@ -171,6 +174,7 @@ final class FloodFillModel: ObservableObject {
         ops.append(op)
         rebuild()
         Haptics.tap()
+        onStateChange?()
     }
 
     /// Repaints the whole canvas from the given ops (used by undo and replay setup).
@@ -297,6 +301,7 @@ final class FloodFillModel: ObservableObject {
         rebuildFromOps(ops)
         rebuild()
         Haptics.tap()
+        onStateChange?()
     }
 
     func clear() {
@@ -307,6 +312,7 @@ final class FloodFillModel: ObservableObject {
         anchors.removeAll()
         rebuild()
         Haptics.tap()
+        onStateChange?()
     }
 
     // MARK: Internals
@@ -404,8 +410,12 @@ struct ImageColoringScreen: View {
 
     init(page: ImagePage, initialOps: [FloodFillModel.Op] = []) {
         self.page = page
+        // Restore explicit ops (from My Drawings) or this page's saved progress.
+        let ops = initialOps.isEmpty
+            ? (ProgressStore.shared.load(pageID: page.id)?.floodOps() ?? [])
+            : initialOps
         _model = StateObject(wrappedValue:
-            FloodFillModel(imageName: page.imageName, initialOps: initialOps))
+            FloodFillModel(imageName: page.imageName, initialOps: ops))
     }
 
     var body: some View {
@@ -437,6 +447,14 @@ struct ImageColoringScreen: View {
         )
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            let pageID = page.id
+            model.onStateChange = { [weak model] in
+                guard let model else { return }
+                ProgressStore.shared.save(pageID: pageID,
+                                          state: .image(pageID: pageID, ops: model.currentOps()))
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Menu {

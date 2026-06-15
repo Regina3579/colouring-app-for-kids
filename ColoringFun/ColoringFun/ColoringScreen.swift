@@ -21,7 +21,10 @@ struct ColoringScreen: View {
 
     init(page: ColoringPage, initialFills: [Int: Fill] = [:]) {
         self.page = page
-        _fills = State(initialValue: initialFills)
+        let f = initialFills.isEmpty
+            ? (ProgressStore.shared.load(pageID: page.id)?.fillsDict() ?? [:])
+            : initialFills
+        _fills = State(initialValue: f)
     }
 
     var body: some View {
@@ -59,6 +62,12 @@ struct ColoringScreen: View {
         )
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: fills) { _, newFills in
+            if !isReplaying {
+                ProgressStore.shared.save(pageID: page.id,
+                                          state: .vector(pageID: page.id, fills: newFills))
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Menu {
