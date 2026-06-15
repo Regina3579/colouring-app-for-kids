@@ -24,7 +24,8 @@ enum Categories {
                  tint: Color(red: 0.82, green: 0.88, blue: 0.96), items: carItems,
                  thumbnail: "cat_cars"),
         Category(id: "transport", name: "Transport", emoji: "🚍",
-                 tint: Color(red: 1.0, green: 0.88, blue: 0.74), items: transportItems),
+                 tint: Color(red: 1.0, green: 0.88, blue: 0.74), items: transportItems,
+                 thumbnail: "cat_transport"),
     ]
 
     // Real outline-image animals (tap to flood-fill).
