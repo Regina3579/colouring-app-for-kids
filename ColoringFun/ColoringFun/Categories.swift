@@ -142,6 +142,11 @@ enum Categories {
         ("tr_schoolbus", "School Bus", "🚌", Color(red: 1.0, green: 0.92, blue: 0.70)),
         ("tr_towtruck", "Tow Truck", "🛻", Color(red: 0.86, green: 0.90, blue: 0.80)),
         ("tr_dumptruck", "Dump Truck", "🚛", Color(red: 1.0, green: 0.88, blue: 0.72)),
+        ("tr_train", "Train", "🚆", Color(red: 0.82, green: 0.90, blue: 0.96)),
+        ("tr_rocket", "Rocket", "🚀", Color(red: 0.86, green: 0.84, blue: 0.98)),
+        ("tr_tractor", "Tractor", "🚜", Color(red: 0.86, green: 0.92, blue: 0.78)),
+        ("tr_sailboat", "Sailboat", "⛵", Color(red: 0.80, green: 0.92, blue: 0.98)),
+        ("tr_ship", "Ship", "🚢", Color(red: 0.82, green: 0.90, blue: 0.96)),
     ]
 
     private static let transportItems: [CategoryItem] = transportSpecs.map {
