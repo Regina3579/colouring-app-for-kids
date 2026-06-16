@@ -62,11 +62,20 @@ struct ColoringScreen: View {
         )
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if fills.isEmpty, let saved = ProgressStore.shared.load(pageID: page.id) {
+                fills = saved.fillsDict()
+            }
+        }
         .onChange(of: fills) { _, newFills in
             if !isReplaying {
                 ProgressStore.shared.save(pageID: page.id,
                                           state: .vector(pageID: page.id, fills: newFills))
             }
+        }
+        .onDisappear {
+            ProgressStore.shared.save(pageID: page.id,
+                                      state: .vector(pageID: page.id, fills: fills))
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {

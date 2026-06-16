@@ -35,6 +35,14 @@ final class FloodFillModel: ObservableObject {
 
     func currentOps() -> [Op] { ops }
 
+    /// Restores a saved set of strokes (only if the canvas is currently empty).
+    func restore(_ list: [Op]) {
+        guard ops.isEmpty, !list.isEmpty else { return }
+        for op in list { applyFillRegion(at: op.point, op.paint, op.tool) }
+        ops = list
+        rebuild()
+    }
+
     init(imageName: String, maxDim: Int = 640, initialOps: [Op] = []) {
         let img = UIImage(named: imageName) ?? FloodFillModel.blank()
         displayImage = img
@@ -410,12 +418,8 @@ struct ImageColoringScreen: View {
 
     init(page: ImagePage, initialOps: [FloodFillModel.Op] = []) {
         self.page = page
-        // Restore explicit ops (from My Drawings) or this page's saved progress.
-        let ops = initialOps.isEmpty
-            ? (ProgressStore.shared.load(pageID: page.id)?.floodOps() ?? [])
-            : initialOps
         _model = StateObject(wrappedValue:
-            FloodFillModel(imageName: page.imageName, initialOps: ops))
+            FloodFillModel(imageName: page.imageName, initialOps: initialOps))
     }
 
     var body: some View {
@@ -449,11 +453,19 @@ struct ImageColoringScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             let pageID = page.id
+            // Restore this picture's saved progress.
+            if model.currentOps().isEmpty, let saved = ProgressStore.shared.load(pageID: pageID) {
+                model.restore(saved.floodOps())
+            }
             model.onStateChange = { [weak model] in
                 guard let model else { return }
                 ProgressStore.shared.save(pageID: pageID,
                                           state: .image(pageID: pageID, ops: model.currentOps()))
             }
+        }
+        .onDisappear {
+            ProgressStore.shared.save(pageID: page.id,
+                                      state: .image(pageID: page.id, ops: model.currentOps()))
         }
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
