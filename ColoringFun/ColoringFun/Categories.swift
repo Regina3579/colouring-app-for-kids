@@ -79,8 +79,14 @@ enum Categories {
         ("fairy_winter", "Snow Fairy", "🧚", Color(red: 0.86, green: 0.92, blue: 1.0)),
     ]
 
+    /// These fairies are unlocked only for Pro users.
+    private static let proFairyIDs: Set<String> = [
+        "fairy_rainbow", "fairy_ballerina", "fairy_mermaid", "fairy_winter",
+    ]
+
     private static let fairyItems: [CategoryItem] = fairySpecs.map {
-        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3,
+                         isPro: proFairyIDs.contains($0.0)))
     }
 
     // Unicorn outline pictures (tap to flood-fill).

@@ -44,24 +44,26 @@ struct GalleryView: View {
 /// The pictures inside one category.
 struct CategoryPagesView: View {
     let category: Category
+    @ObservedObject private var pro = ProStore.shared
+    @State private var showPro = false
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 18) {
                 ForEach(category.items) { item in
-                    NavigationLink {
-                        switch item {
-                        case .vector(let page): ColoringScreen(page: page)
-                        case .image(let page): ImageColoringScreen(page: page)
+                    let locked = item.isPro && !pro.isUnlocked
+                    if locked {
+                        Button { showPro = true } label: { card(item, locked: true) }
+                            .buttonStyle(.plain)
+                    } else {
+                        NavigationLink {
+                            destination(item)
+                        } label: {
+                            card(item, locked: false)
                         }
-                    } label: {
-                        switch item {
-                        case .vector(let page): PageCard(page: page)
-                        case .image(let page): ImagePageCard(page: page)
-                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(18)
@@ -69,6 +71,21 @@ struct CategoryPagesView: View {
         .background(bgGradient.ignoresSafeArea())
         .navigationTitle("\(category.emoji) \(category.name)")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showPro) { ProUnlockView() }
+    }
+
+    @ViewBuilder private func destination(_ item: CategoryItem) -> some View {
+        switch item {
+        case .vector(let page): ColoringScreen(page: page)
+        case .image(let page): ImageColoringScreen(page: page)
+        }
+    }
+
+    @ViewBuilder private func card(_ item: CategoryItem, locked: Bool) -> some View {
+        switch item {
+        case .vector(let page): PageCard(page: page)
+        case .image(let page): ImagePageCard(page: page, locked: locked)
+        }
     }
 }
 
@@ -127,6 +144,7 @@ private struct PageCard: View {
 /// Card for an image-backed picture: shows the real outline thumbnail.
 private struct ImagePageCard: View {
     let page: ImagePage
+    var locked = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -136,6 +154,18 @@ private struct ImagePageCard: View {
                     .resizable()
                     .scaledToFit()
                     .padding(10)
+                    .opacity(locked ? 0.55 : 1)
+                if locked {
+                    ZStack {
+                        Circle().fill(Candy.purple)
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(.white, lineWidth: 3))
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 20, weight: .black))
+                            .foregroundStyle(.white)
+                    }
+                    .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+                }
             }
             .frame(height: 150)
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 4))

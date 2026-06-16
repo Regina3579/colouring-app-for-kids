@@ -161,6 +161,7 @@ struct ImagePage: Identifiable {
     let emoji: String
     let imageName: String
     let cardTint: Color
+    var isPro: Bool = false
 }
 
 // MARK: - An item in a category: either a vector picture or an image picture
@@ -185,6 +186,13 @@ enum CategoryItem: Identifiable {
         switch self {
         case .vector(let p): return p.emoji
         case .image(let p): return p.emoji
+        }
+    }
+    /// True if this picture requires Pro to open.
+    var isPro: Bool {
+        switch self {
+        case .vector: return false
+        case .image(let p): return p.isPro
         }
     }
 }

@@ -30,7 +30,7 @@ struct ProUnlockView: View {
             Text("Coloring Fun Pro")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundStyle(Candy.ink)
-            Text("Unlock a beautiful palette of elegant pastel colours")
+            Text("Unlock elegant pastel colours and exclusive Pro pictures")
                 .font(.system(size: 16, weight: .medium, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Candy.ink.opacity(0.7))
