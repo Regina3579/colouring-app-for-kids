@@ -38,6 +38,9 @@ enum Tool: String, CaseIterable, Identifiable {
         case .eraser:  return "🧽"
         }
     }
+
+    /// Glitter is a Pro-only tool.
+    var isPro: Bool { self == .glitter }
 }
 
 // MARK: - A single fillable part of a picture
@@ -321,7 +324,9 @@ enum Palette {
         Swatch(id: "ps_cloud",   paint: .solid(c(0.91, 0.93, 0.97)), name: "Cloud", isPro: true),
     ]
 
-    static let swatches: [Swatch] = solids + pastels + gradients + glitters
+    // Glitter swatches are Pro-only too.
+    static let swatches: [Swatch] = solids + pastels + gradients
+        + glitters.map { Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: true) }
 
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }

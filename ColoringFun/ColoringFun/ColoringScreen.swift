@@ -196,6 +196,9 @@ struct ToolBar: View {
     var canReplay = false
     var isReplaying = false
 
+    @ObservedObject private var pro = ProStore.shared
+    @State private var showPro = false
+
     private func toolColor(_ t: Tool) -> Color {
         switch t {
         case .bucket:  return Candy.blue
@@ -209,7 +212,10 @@ struct ToolBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
                 ForEach(Tool.allCases) { t in
-                    Button { tool = t } label: {
+                    let locked = t.isPro && !pro.isUnlocked
+                    Button {
+                        if locked { showPro = true } else { tool = t }
+                    } label: {
                         VStack(spacing: 2) {
                             Text(t.emoji).font(.system(size: 24))
                             Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
@@ -228,6 +234,17 @@ struct ToolBar: View {
                             RoundedRectangle(cornerRadius: 19)
                                 .stroke(.white, lineWidth: tool == t ? 4 : 2)
                         )
+                        .overlay(alignment: .topTrailing) {
+                            if locked {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 9, weight: .black))
+                                    .foregroundStyle(.white)
+                                    .padding(3)
+                                    .background(Circle().fill(Candy.purple))
+                                    .overlay(Circle().stroke(.white, lineWidth: 1))
+                                    .offset(x: 4, y: -4)
+                            }
+                        }
                         .scaleEffect(tool == t ? 1.1 : 1.0)
                         .shadow(color: toolColor(t).opacity(0.45), radius: 3, y: 2)
                         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tool)
@@ -243,6 +260,7 @@ struct ToolBar: View {
             }
             .padding(.horizontal, 14)
         }
+        .sheet(isPresented: $showPro) { ProUnlockView() }
     }
 
     private func roundButton(_ system: String, _ tint: Color, _ action: @escaping () -> Void,
