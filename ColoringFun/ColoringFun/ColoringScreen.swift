@@ -18,6 +18,8 @@ struct ColoringScreen: View {
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     @State private var isReplaying = false
+    @State private var celebrating = false
+    @State private var celebratedFull = false
 
     init(page: ColoringPage, initialFills: [Int: Fill] = [:]) {
         self.page = page
@@ -43,6 +45,7 @@ struct ColoringScreen: View {
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                .danceWhenFinished(celebrating)
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -60,6 +63,7 @@ struct ColoringScreen: View {
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         )
+        .overlay { if celebrating { CelebrationOverlay() } }
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -72,6 +76,9 @@ struct ColoringScreen: View {
                 ProgressStore.shared.save(pageID: page.id,
                                           state: .vector(pageID: page.id, fills: newFills))
             }
+            let full = page.regions.count > 0 && newFills.count >= page.regions.count
+            if full, !celebratedFull { celebratedFull = true; startCelebration() }
+            if !full { celebratedFull = false }
         }
         .onDisappear {
             ProgressStore.shared.save(pageID: page.id,
@@ -157,6 +164,16 @@ struct ColoringScreen: View {
         undoStack = []
         redoStack = []
         Haptics.tap()
+    }
+
+    private func startCelebration() {
+        guard !celebrating else { return }
+        celebrating = true
+        Haptics.tap()
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            withAnimation { celebrating = false }
+        }
     }
 
     /// Replays the colouring step by step from a blank picture.
