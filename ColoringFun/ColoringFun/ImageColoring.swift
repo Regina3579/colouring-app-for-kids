@@ -17,6 +17,7 @@ final class FloodFillModel: ObservableObject {
     private var paint: [UInt8]         // RGBA buffer of the child's colours
     private var visited: [Int32]
     private var gen: Int32 = 0
+    private var fillableCount = 0      // number of colourable (non-wall) pixels
 
     /// One recorded fill (for undo / redo / replay).
     struct Op { let point: CGPoint; let paint: Paint; let tool: Tool }
@@ -34,6 +35,14 @@ final class FloodFillModel: ObservableObject {
     @Published private(set) var anchors: [SparkleAnchor] = []
 
     func currentOps() -> [Op] { ops }
+
+    /// Fraction (0...1) of the colourable area the child has filled.
+    func paintedFraction() -> Double {
+        guard fillableCount > 0 else { return 0 }
+        var painted = 0, i = 3
+        while i < paint.count { if paint[i] > 0 { painted += 1 }; i += 4 }
+        return Double(painted) / Double(fillableCount)
+    }
 
     /// Restores a saved set of strokes (only if the canvas is currently empty).
     func restore(_ list: [Op]) {
@@ -69,11 +78,14 @@ final class FloodFillModel: ObservableObject {
         }
 
         var walls = [Bool](repeating: false, count: lw * lh)
+        var fillable = 0
         for i in 0..<(lw * lh) {
             let o = i * 4
             let lum = Int(pixels[o]) * 30 + Int(pixels[o + 1]) * 59 + Int(pixels[o + 2]) * 11
             walls[i] = lum < 11000   // ~110/255 luminance
+            if !walls[i] { fillable += 1 }
         }
+        fillableCount = fillable
 
         w = lw
         h = lh
@@ -504,6 +516,13 @@ struct ImageColoringScreen: View {
 
     private func startCelebration() {
         guard !celebrating else { return }
+        // The party only starts once most of the picture is coloured in.
+        guard model.paintedFraction() >= 0.65 else {
+            alertTitle = "Almost there! 🎨"
+            alertMessage = "Colour a little more of your picture, then tap the ✓ to celebrate!"
+            savedAlert = true
+            return
+        }
         celebrating = true
         Haptics.tap()
         Task { @MainActor in

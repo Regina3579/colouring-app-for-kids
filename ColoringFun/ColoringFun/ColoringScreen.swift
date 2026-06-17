@@ -169,6 +169,14 @@ struct ColoringScreen: View {
 
     private func startCelebration() {
         guard !celebrating else { return }
+        // The party only starts once most of the picture is coloured in.
+        let total = max(page.regions.count, 1)
+        guard Double(fills.count) / Double(total) >= 0.65 else {
+            alertTitle = "Almost there! 🎨"
+            alertMessage = "Colour a little more of your picture, then tap the ✓ to celebrate!"
+            savedAlert = true
+            return
+        }
         celebrating = true
         Haptics.tap()
         Task { @MainActor in
