@@ -225,6 +225,15 @@ struct ToolBar: View {
     @ObservedObject private var pro = ProStore.shared
     @State private var showPro = false
 
+    /// The icon shown on a tool button — a custom picture for Paint, emoji otherwise.
+    @ViewBuilder private func toolGlyph(_ t: Tool) -> some View {
+        if t == .bucket {
+            Image("tool_paint").resizable().scaledToFit().frame(width: 34, height: 34)
+        } else {
+            Text(t.emoji).font(.system(size: 24))
+        }
+    }
+
     private func toolColor(_ t: Tool) -> Color {
         switch t {
         case .bucket:  return Candy.blue
@@ -243,7 +252,7 @@ struct ToolBar: View {
                         if locked { showPro = true } else { tool = t }
                     } label: {
                         VStack(spacing: 2) {
-                            Text(t.emoji).font(.system(size: 24))
+                            toolGlyph(t)
                             Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
                                 .foregroundStyle(.white)
                         }
