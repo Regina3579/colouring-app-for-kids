@@ -17,7 +17,8 @@ final class FloodFillModel: ObservableObject {
     private var paint: [UInt8]         // RGBA buffer of the child's colours
     private var visited: [Int32]
     private var gen: Int32 = 0
-    private var fillableCount = 0      // number of colourable (non-wall) pixels
+    private var countable: [Bool] = [] // picture area (excludes outer background)
+    private var fillableCount = 0      // number of countable pixels
 
     /// One recorded fill (for undo / redo / replay).
     struct Op { let point: CGPoint; let paint: Paint; let tool: Tool }
@@ -36,11 +37,14 @@ final class FloodFillModel: ObservableObject {
 
     func currentOps() -> [Op] { ops }
 
-    /// Fraction (0...1) of the colourable area the child has filled.
+    /// Fraction (0...1) of the picture the child has filled — the outer
+    /// background is ignored, so colouring just the character still counts.
     func paintedFraction() -> Double {
         guard fillableCount > 0 else { return 0 }
-        var painted = 0, i = 3
-        while i < paint.count { if paint[i] > 0 { painted += 1 }; i += 4 }
+        var painted = 0
+        for idx in 0..<(w * h) where countable[idx] {
+            if paint[idx * 4 + 3] > 0 { painted += 1 }
+        }
         return Double(painted) / Double(fillableCount)
     }
 
@@ -78,18 +82,42 @@ final class FloodFillModel: ObservableObject {
         }
 
         var walls = [Bool](repeating: false, count: lw * lh)
-        var fillable = 0
         for i in 0..<(lw * lh) {
             let o = i * 4
             let lum = Int(pixels[o]) * 30 + Int(pixels[o + 1]) * 59 + Int(pixels[o + 2]) * 11
             walls[i] = lum < 11000   // ~110/255 luminance
-            if !walls[i] { fillable += 1 }
+        }
+
+        // Flood the outer background (anything reachable from the border) so it
+        // can be ignored when measuring how "finished" the picture is.
+        var background = [Bool](repeating: false, count: lw * lh)
+        var stack: [Int] = []
+        func seed(_ n: Int) {
+            if !walls[n] && !background[n] { background[n] = true; stack.append(n) }
+        }
+        for x in 0..<lw { seed(x); seed((lh - 1) * lw + x) }
+        for y in 0..<lh { seed(y * lw); seed(y * lw + (lw - 1)) }
+        while let i = stack.popLast() {
+            let x = i % lw, y = i / lw
+            if x > 0     { seed(i - 1) }
+            if x < lw - 1 { seed(i + 1) }
+            if y > 0     { seed(i - lw) }
+            if y < lh - 1 { seed(i + lw) }
+        }
+
+        // Countable = colourable area that belongs to the picture, not the
+        // surrounding background.
+        var mask = [Bool](repeating: false, count: lw * lh)
+        var fillable = 0
+        for i in 0..<(lw * lh) where !walls[i] && !background[i] {
+            mask[i] = true; fillable += 1
         }
         fillableCount = fillable
 
         w = lw
         h = lh
         barrier = walls
+        countable = mask
         paint = [UInt8](repeating: 0, count: lw * lh * 4)
         visited = [Int32](repeating: 0, count: lw * lh)
 
