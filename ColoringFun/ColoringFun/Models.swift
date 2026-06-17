@@ -332,6 +332,49 @@ enum Palette {
     static var defaultID: String { solids[1].id }
 }
 
+// MARK: - Palette groups shown behind tappable category buttons
+
+/// Splits the long colour list into tidy tabs so kids tap a group
+/// (e.g. "Pastel") to reveal just those colours.
+enum PaletteCategory: String, CaseIterable, Identifiable {
+    case colours, pastel, fade, glitter
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .colours: return "Colours"
+        case .pastel:  return "Pastel"
+        case .fade:    return "Fade"
+        case .glitter: return "Glitter"
+        }
+    }
+
+    var emoji: String {
+        switch self {
+        case .colours: return "🎨"
+        case .pastel:  return "🌸"
+        case .fade:    return "🌈"
+        case .glitter: return "✨"
+        }
+    }
+
+    /// The swatches shown when this tab is selected.
+    var swatches: [Swatch] {
+        switch self {
+        case .colours: return Palette.solids
+        case .pastel:  return Palette.pastels
+        case .fade:    return Palette.gradients
+        case .glitter: return Palette.glitters.map {
+            Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: true)
+        }
+        }
+    }
+
+    /// True if the whole group is Pro-only (shows a crown on the tab).
+    var isPro: Bool { self == .pastel || self == .glitter }
+}
+
 // MARK: - Deterministic randomness so glitter does not flicker on redraw
 
 struct SeededGenerator: RandomNumberGenerator {

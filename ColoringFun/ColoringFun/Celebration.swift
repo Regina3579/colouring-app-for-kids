@@ -25,6 +25,28 @@ private struct ConfettiPiece {
     }
 }
 
+/// A round green tick kids tap at the top corner of the picture when they're
+/// finished — it sets off the confetti + happy dance celebration.
+struct DoneTickButton: View {
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "checkmark")
+                .font(.system(size: 26, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 54, height: 54)
+                .background(Circle().fill((enabled ? Candy.green : Color.gray.opacity(0.45)).gradient))
+                .overlay(Circle().stroke(.white, lineWidth: 4))
+                .shadow(color: (enabled ? Candy.green : .clear).opacity(0.5), radius: 5, y: 3)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .accessibilityLabel("Done")
+    }
+}
+
 /// A cheerful burst of confetti + "Beautiful!" banner shown when a picture is done.
 struct CelebrationOverlay: View {
     @State private var start = Date()

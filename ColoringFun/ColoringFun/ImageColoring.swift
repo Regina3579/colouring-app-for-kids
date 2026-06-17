@@ -24,10 +24,6 @@ final class FloodFillModel: ObservableObject {
     private var redoOps: [Op] = []
     /// Called after any edit (fill/undo/redo/clear) — used for auto-save.
     var onStateChange: (() -> Void)?
-    /// Bumped once each time the picture becomes (almost) fully coloured.
-    @Published private(set) var completedTick = 0
-    private var fillableCount = 0
-    private var celebrated = false
     var canUndo: Bool { !ops.isEmpty }
     var canRedo: Bool { !redoOps.isEmpty }
     var canReplay: Bool { !ops.isEmpty }
@@ -73,14 +69,11 @@ final class FloodFillModel: ObservableObject {
         }
 
         var walls = [Bool](repeating: false, count: lw * lh)
-        var fillable = 0
         for i in 0..<(lw * lh) {
             let o = i * 4
             let lum = Int(pixels[o]) * 30 + Int(pixels[o + 1]) * 59 + Int(pixels[o + 2]) * 11
             walls[i] = lum < 11000   // ~110/255 luminance
-            if !walls[i] { fillable += 1 }
         }
-        fillableCount = fillable
 
         w = lw
         h = lh
@@ -122,18 +115,6 @@ final class FloodFillModel: ObservableObject {
         rebuild()
         Haptics.tap()
         onStateChange?()
-        checkComplete()
-    }
-
-    /// Fires onComplete once the picture is almost fully coloured.
-    private func checkComplete() {
-        guard !celebrated, fillableCount > 0 else { return }
-        var painted = 0, i = 3
-        while i < paint.count { if paint[i] > 0 { painted += 1 }; i += 4 }
-        if Double(painted) >= Double(fillableCount) * 0.85 {
-            celebrated = true
-            completedTick += 1
-        }
     }
 
     /// Paints the region at `pt` with the given paint/tool. Returns false if the
@@ -327,7 +308,6 @@ final class FloodFillModel: ObservableObject {
         redoOps.append(op)
         rebuildFromOps(ops)
         rebuild()
-        celebrated = false
         Haptics.tap()
         onStateChange?()
     }
@@ -338,7 +318,6 @@ final class FloodFillModel: ObservableObject {
         ops.removeAll()
         redoOps.removeAll()
         anchors.removeAll()
-        celebrated = false
         rebuild()
         Haptics.tap()
         onStateChange?()
@@ -454,6 +433,11 @@ struct ImageColoringScreen: View {
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                 .danceWhenFinished(celebrating)
+                .overlay(alignment: .topTrailing) {
+                    DoneTickButton(enabled: model.hasPaint && !isReplaying,
+                                   action: startCelebration)
+                        .padding(18)
+                }
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -475,7 +459,6 @@ struct ImageColoringScreen: View {
         .overlay { if celebrating { CelebrationOverlay() } }
         .navigationTitle("\(page.emoji) \(page.title)")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: model.completedTick) { _, _ in startCelebration() }
         .onAppear {
             let pageID = page.id
             // Restore this picture's saved progress.

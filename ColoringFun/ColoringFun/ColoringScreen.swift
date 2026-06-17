@@ -19,7 +19,6 @@ struct ColoringScreen: View {
     @State private var alertMessage = ""
     @State private var isReplaying = false
     @State private var celebrating = false
-    @State private var celebratedFull = false
 
     init(page: ColoringPage, initialFills: [Int: Fill] = [:]) {
         self.page = page
@@ -46,6 +45,11 @@ struct ColoringScreen: View {
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                 .danceWhenFinished(celebrating)
+                .overlay(alignment: .topTrailing) {
+                    DoneTickButton(enabled: !fills.isEmpty && !isReplaying,
+                                   action: startCelebration)
+                        .padding(18)
+                }
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -76,9 +80,6 @@ struct ColoringScreen: View {
                 ProgressStore.shared.save(pageID: page.id,
                                           state: .vector(pageID: page.id, fills: newFills))
             }
-            let full = page.regions.count > 0 && newFills.count >= page.regions.count
-            if full, !celebratedFull { celebratedFull = true; startCelebration() }
-            if !full { celebratedFull = false }
         }
         .onDisappear {
             ProgressStore.shared.save(pageID: page.id,
@@ -303,42 +304,91 @@ struct PaletteBar: View {
     @Binding var selectedSwatchID: String
     @ObservedObject private var pro = ProStore.shared
     @State private var showPro = false
+    @State private var category: PaletteCategory = .colours
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
-                ForEach(Palette.swatches) { swatch in
-                    let selected = selectedSwatchID == swatch.id
-                    let locked = swatch.isPro && !pro.isUnlocked
-                    Button {
-                        if locked {
-                            showPro = true
-                        } else {
-                            selectedPaint = swatch.paint
-                            selectedSwatchID = swatch.id
+        VStack(spacing: 6) {
+            categoryTabs
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(category.swatches) { swatch in
+                        let selected = selectedSwatchID == swatch.id
+                        let locked = swatch.isPro && !pro.isUnlocked
+                        Button {
+                            if locked {
+                                showPro = true
+                            } else {
+                                selectedPaint = swatch.paint
+                                selectedSwatchID = swatch.id
+                            }
+                        } label: {
+                            SwatchShape(paint: swatch.paint)
+                                .frame(width: 46, height: 46)
+                                .overlay(Circle().stroke(.white, lineWidth: 4))
+                                .overlay(
+                                    Circle().stroke(Color(red: 0.32, green: 0.30, blue: 0.45),
+                                                    lineWidth: selected ? 3 : 0)
+                                        .padding(-3)
+                                )
+                                .overlay(lockBadge(locked))
+                                .opacity(locked ? 0.9 : 1)
+                                .scaleEffect(selected ? 1.18 : 1.0)
+                                .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
+                                .animation(.spring(response: 0.3), value: selectedSwatchID)
                         }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+            }
+        }
+        .sheet(isPresented: $showPro) { ProUnlockView() }
+    }
+
+    /// The "Colours / Pastel / Fade / Glitter" tabs above the swatches.
+    private var categoryTabs: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(PaletteCategory.allCases) { cat in
+                    let selected = category == cat
+                    let locked = cat.isPro && !pro.isUnlocked
+                    Button {
+                        withAnimation(.spring(response: 0.3)) { category = cat }
                     } label: {
-                        SwatchShape(paint: swatch.paint)
-                            .frame(width: 46, height: 46)
-                            .overlay(Circle().stroke(.white, lineWidth: 4))
-                            .overlay(
-                                Circle().stroke(Color(red: 0.32, green: 0.30, blue: 0.45),
-                                                lineWidth: selected ? 3 : 0)
-                                    .padding(-3)
-                            )
-                            .overlay(lockBadge(locked))
-                            .opacity(locked ? 0.9 : 1)
-                            .scaleEffect(selected ? 1.18 : 1.0)
-                            .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
-                            .animation(.spring(response: 0.3), value: selectedSwatchID)
+                        HStack(spacing: 4) {
+                            Text(cat.emoji).font(.system(size: 14))
+                            Text(cat.title).font(.system(size: 13, weight: .heavy, design: .rounded))
+                        }
+                        .foregroundStyle(selected ? .white : Candy.ink.opacity(0.75))
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 7)
+                        .background(
+                            Capsule().fill(selected ? AnyShapeStyle(Candy.purple.gradient)
+                                                    : AnyShapeStyle(Color.white))
+                        )
+                        .overlay(Capsule().stroke(selected ? Color.clear : Candy.ink.opacity(0.15),
+                                                  lineWidth: 1.5))
+                        .overlay(alignment: .topTrailing) {
+                            if locked {
+                                Image(systemName: "crown.fill")
+                                    .font(.system(size: 8, weight: .black))
+                                    .foregroundStyle(.white)
+                                    .padding(3)
+                                    .background(Circle().fill(Candy.purple))
+                                    .overlay(Circle().stroke(.white, lineWidth: 1))
+                                    .offset(x: 5, y: -5)
+                            }
+                        }
+                        .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+            .padding(.top, 4)
         }
-        .sheet(isPresented: $showPro) { ProUnlockView() }
     }
 
     @ViewBuilder private func lockBadge(_ locked: Bool) -> some View {
