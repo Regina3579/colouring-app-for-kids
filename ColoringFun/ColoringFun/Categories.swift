@@ -103,8 +103,13 @@ enum Categories {
         ("unicorn_fairy", "Fairy Unicorn", "🦄", Color(red: 0.96, green: 0.86, blue: 1.0)),
     ]
 
+    private static let proUnicornIDs: Set<String> = [
+        "unicorn_mermaid", "unicorn_fairy", "unicorn_pegacorn",
+    ]
+
     private static let unicornItems: [CategoryItem] = unicornSpecs.map {
-        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3,
+                         isPro: proUnicornIDs.contains($0.0)))
     }
 
     // Bird outline pictures (tap to flood-fill).
