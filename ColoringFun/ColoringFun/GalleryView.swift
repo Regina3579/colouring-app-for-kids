@@ -8,6 +8,7 @@ private let inkColor = Color(red: 0.32, green: 0.30, blue: 0.45)
 
 /// Home screen: the themed categories (Animals, Birds, Fairy, Princess).
 struct GalleryView: View {
+    @State private var showPro = false
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
@@ -30,6 +31,12 @@ struct GalleryView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showPro = true } label: {
+                        Image(systemName: "crown.fill").cuteCircle(Candy.orange)
+                    }
+                    .accessibilityLabel("Coloring Fun Pro")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink {
                         MyDrawingsView()
                     } label: {
@@ -37,6 +44,7 @@ struct GalleryView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showPro) { ProUnlockView() }
         }
     }
 }
