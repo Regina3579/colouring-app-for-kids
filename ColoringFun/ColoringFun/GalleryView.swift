@@ -9,11 +9,16 @@ private let inkColor = Color(red: 0.32, green: 0.30, blue: 0.45)
 /// Home screen: the themed categories (Animals, Birds, Fairy, Princess).
 struct GalleryView: View {
     @State private var showPro = false
+    @ObservedObject private var pro = ProStore.shared
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
         NavigationStack {
             ScrollView {
+                createOwnSection
+                    .padding(.horizontal, 18)
+                    .padding(.top, 8)
+
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
                         NavigationLink {
@@ -46,6 +51,58 @@ struct GalleryView: View {
             }
             .sheet(isPresented: $showPro) { ProUnlockView() }
         }
+    }
+
+    /// Pro-only "Create Your Own Drawing" banner. Unlocked users open the blank
+    /// canvas; everyone else is shown the Pro page.
+    @ViewBuilder private var createOwnSection: some View {
+        if pro.isUnlocked {
+            NavigationLink {
+                CreateDrawingView()
+            } label: {
+                CreateOwnCard(locked: false)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button { showPro = true } label: {
+                CreateOwnCard(locked: true)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+/// The colourful banner that launches the blank drawing canvas.
+private struct CreateOwnCard: View {
+    let locked: Bool
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(.white.opacity(0.25)).frame(width: 60, height: 60)
+                Text("🎨").font(.system(size: 32))
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Create Your Own Drawing")
+                    .font(.system(size: 19, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Draw with ✏️ pen, 🖌️ brush & 🖍️ crayon")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            Spacer(minLength: 0)
+            Image(systemName: locked ? "crown.fill" : "chevron.right.circle.fill")
+                .font(.system(size: locked ? 22 : 26, weight: .black))
+                .foregroundStyle(.white)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .background(
+            LinearGradient(colors: [Candy.purple, Candy.pink],
+                           startPoint: .leading, endPoint: .trailing),
+            in: RoundedRectangle(cornerRadius: 26))
+        .overlay(RoundedRectangle(cornerRadius: 26).stroke(.white, lineWidth: 4))
+        .shadow(color: Candy.purple.opacity(0.35), radius: 6, y: 3)
     }
 }
 

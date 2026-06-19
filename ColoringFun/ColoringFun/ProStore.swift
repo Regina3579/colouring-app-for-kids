@@ -54,6 +54,7 @@ private struct ProFeature: Identifiable {
 }
 
 private let proFeatures: [ProFeature] = [
+    ProFeature(icon: "pencil.and.outline", text: "Create your own drawings — pen, brush & crayon"),
     ProFeature(icon: "crown.fill", text: "Exclusive Pro pictures — fairies, unicorns & more"),
     ProFeature(icon: "paintpalette.fill", text: "Soft pastel colour palette"),
     ProFeature(icon: "sparkles", text: "Sparkly glitter & shiny brushes"),
