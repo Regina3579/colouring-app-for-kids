@@ -32,6 +32,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Default stroke width (the eraser uses a chosen size instead).
     var lineWidth: CGFloat {
         switch self {
         case .pen:    return 6
@@ -55,7 +56,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
 struct DrawStroke: Identifiable {
     let id = UUID()
     var points: [CGPoint]
-    var color: Color
+    var paint: Paint
     var width: CGFloat
     var tool: DrawTool
 }
@@ -76,28 +77,68 @@ enum DrawingRender {
         return p
     }
 
-    static func draw(_ stroke: DrawStroke, in ctx: inout GraphicsContext) {
-        let color = stroke.tool == .eraser ? Color.white : stroke.color
-        let path = path(for: stroke)
+    /// A shading for the stroke's paint (solid, gradient, glitter or fancy glitter).
+    private static func shading(for paint: Paint, bounds: CGRect) -> GraphicsContext.Shading {
+        switch paint {
+        case .solid(let c):   return .color(c)
+        case .glitter(let c): return .color(c)
+        case .gradient(let cs):
+            return .linearGradient(Gradient(colors: cs),
+                                   startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
+                                   endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY))
+        case .fancy(let s):
+            return .linearGradient(Gradient(colors: s.base),
+                                   startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
+                                   endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY))
+        }
+    }
 
-        // A single tap becomes a round dot.
-        if stroke.points.count == 1 {
-            let dot = stroke.tool == .crayon ? color.opacity(0.85) : color
-            ctx.fill(path, with: .color(dot))
+    static func draw(_ stroke: DrawStroke, in ctx: inout GraphicsContext) {
+        let path = path(for: stroke)
+        let width = stroke.width
+        let style = StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
+
+        // The eraser always paints the white page back in.
+        if stroke.tool == .eraser {
+            if stroke.points.count == 1 { ctx.fill(path, with: .color(.white)) }
+            else { ctx.stroke(path, with: .color(.white), style: style) }
             return
         }
 
-        switch stroke.tool {
-        case .pen, .brush, .eraser:
-            ctx.stroke(path, with: .color(color),
-                       style: StrokeStyle(lineWidth: stroke.width, lineCap: .round, lineJoin: .round))
-        case .crayon:
-            // Waxy look: a soft base plus a broken, dashed highlight.
-            ctx.stroke(path, with: .color(color.opacity(0.85)),
-                       style: StrokeStyle(lineWidth: stroke.width, lineCap: .round, lineJoin: .round))
+        let paintShading = shading(for: stroke.paint, bounds: path.boundingRect)
+
+        if stroke.points.count == 1 {
+            ctx.fill(path, with: paintShading)
+        } else if stroke.tool == .crayon {
+            ctx.stroke(path, with: paintShading, style: style)
             ctx.stroke(path, with: .color(.white.opacity(0.22)),
-                       style: StrokeStyle(lineWidth: stroke.width, lineCap: .round,
-                                          dash: [stroke.width * 0.12, stroke.width * 0.24]))
+                       style: StrokeStyle(lineWidth: width, lineCap: .round,
+                                          dash: [width * 0.12, width * 0.24]))
+        } else {
+            ctx.stroke(path, with: paintShading, style: style)
+        }
+
+        if stroke.paint.sparkles { drawSparkles(stroke, in: &ctx) }
+    }
+
+    /// Scatters little sparkles along a glitter stroke (stable across redraws).
+    private static func drawSparkles(_ stroke: DrawStroke, in ctx: inout GraphicsContext) {
+        let colors: [Color]
+        switch stroke.paint {
+        case .glitter:        colors = [.white]
+        case .fancy(let s):   colors = s.sparkle
+        default:              return
+        }
+        var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(stroke.id.hashValue)))
+        let w = stroke.width
+        for pt in stroke.points where rng.unit() < 0.35 {
+            let dx = (rng.unit() - 0.5) * w
+            let dy = (rng.unit() - 0.5) * w
+            let r = w * (0.06 + rng.unit() * 0.10)
+            let c = colors[Int(rng.unit() * Double(colors.count)) % max(colors.count, 1)]
+            ctx.fill(Path(ellipseIn: CGRect(x: pt.x + dx - r, y: pt.y + dy - r,
+                                            width: r * 2, height: r * 2)),
+                     with: .color(c))
         }
     }
 }
@@ -108,27 +149,25 @@ struct CreateDrawingView: View {
     @State private var strokes: [DrawStroke] = []
     @State private var live: DrawStroke?
     @State private var tool: DrawTool = .pen
-    @State private var colorID: String = "black"
+    @State private var selectedPaint: Paint = Palette.defaultPaint
+    @State private var selectedSwatchID: String = Palette.defaultID
+    @State private var eraserWidth: CGFloat = 34
     @State private var canvasSize: CGSize = .zero
+    @State private var didLoad = false
+    @State private var isReplaying = false
 
     @State private var shareItem: ShareItem?
     @State private var savedAlert = false
     @State private var alertTitle = ""
     @State private var alertMessage = ""
 
-    /// Solid colours pulled from the shared palette.
-    private let palette: [(id: String, color: Color)] = Palette.solids.compactMap {
-        if case .solid(let c) = $0.paint { return ($0.id, c) }
-        return nil
-    }
-
-    private var selectedColor: Color {
-        palette.first { $0.id == colorID }?.color ?? .black
-    }
+    /// Eraser sizes from tiny to big.
+    private let eraserSizes: [CGFloat] = [12, 24, 38, 56, 76]
 
     var body: some View {
         VStack(spacing: 0) {
             canvas
+                .allowsHitTesting(!isReplaying)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -140,8 +179,12 @@ struct CreateDrawingView: View {
             toolRow
                 .padding(.vertical, 10)
 
-            colorRow
-                .padding(.bottom, 8)
+            if tool == .eraser {
+                eraserSizeRow.padding(.bottom, 12)
+            } else {
+                PaletteBar(selectedPaint: $selectedPaint, selectedSwatchID: $selectedSwatchID)
+                    .padding(.bottom, 8)
+            }
         }
         .background(
             LinearGradient(colors: [Color(red: 1.0, green: 0.97, blue: 0.86),
@@ -163,13 +206,14 @@ struct CreateDrawingView: View {
                 } label: {
                     Image(systemName: "tray.and.arrow.down.fill").cuteCircle(Candy.green)
                 }
-                .disabled(strokes.isEmpty)
+                .disabled(strokes.isEmpty || isReplaying)
                 Button(action: share) {
                     Image(systemName: "square.and.arrow.up.fill").cuteCircle(Candy.blue)
                 }
-                .disabled(strokes.isEmpty)
+                .disabled(strokes.isEmpty || isReplaying)
             }
         }
+        .onDisappear { saveDraft() }
         .sheet(item: $shareItem) { item in
             ActivityView(items: [item.image])
         }
@@ -190,10 +234,11 @@ struct CreateDrawingView: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        guard !isReplaying else { return }
                         if live == nil {
-                            live = DrawStroke(points: [value.location],
-                                              color: selectedColor,
-                                              width: tool.lineWidth, tool: tool)
+                            let width = tool == .eraser ? eraserWidth : tool.lineWidth
+                            live = DrawStroke(points: [value.location], paint: selectedPaint,
+                                              width: width, tool: tool)
                         } else {
                             live?.points.append(value.location)
                         }
@@ -202,42 +247,51 @@ struct CreateDrawingView: View {
                         if let finished = live { strokes.append(finished) }
                         live = nil
                         Haptics.tap()
+                        saveDraft()
                     }
             )
-            .onAppear { canvasSize = geo.size }
-            .onChange(of: geo.size) { _, new in canvasSize = new }
+            .onAppear { canvasSize = geo.size; loadDraftIfNeeded() }
+            .onChange(of: geo.size) { _, new in canvasSize = new; loadDraftIfNeeded() }
         }
     }
 
     // MARK: Tools
 
     private var toolRow: some View {
-        HStack(spacing: 12) {
-            ForEach(DrawTool.allCases) { t in
-                Button { tool = t } label: {
-                    VStack(spacing: 2) {
-                        Text(t.emoji).font(.system(size: 24))
-                        Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
-                            .foregroundStyle(.white)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(DrawTool.allCases) { t in
+                    Button { tool = t } label: {
+                        VStack(spacing: 2) {
+                            Text(t.emoji).font(.system(size: 23))
+                            Text(t.title).font(.system(size: 10, weight: .heavy, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: 58, height: 58)
+                        .background(
+                            RoundedRectangle(cornerRadius: 19)
+                                .fill(t.tint.gradient)
+                                .overlay(RoundedRectangle(cornerRadius: 19)
+                                    .fill(.white.opacity(tool == t ? 0 : 0.22)))
+                        )
+                        .overlay(RoundedRectangle(cornerRadius: 19)
+                            .stroke(.white, lineWidth: tool == t ? 4 : 2))
+                        .scaleEffect(tool == t ? 1.1 : 1.0)
+                        .shadow(color: t.tint.opacity(0.45), radius: 3, y: 2)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tool)
                     }
-                    .frame(width: 62, height: 60)
-                    .background(
-                        RoundedRectangle(cornerRadius: 19)
-                            .fill(t.tint.gradient)
-                            .overlay(RoundedRectangle(cornerRadius: 19)
-                                .fill(.white.opacity(tool == t ? 0 : 0.22)))
-                    )
-                    .overlay(RoundedRectangle(cornerRadius: 19)
-                        .stroke(.white, lineWidth: tool == t ? 4 : 2))
-                    .scaleEffect(tool == t ? 1.1 : 1.0)
-                    .shadow(color: t.tint.opacity(0.45), radius: 3, y: 2)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: tool)
+                    .buttonStyle(.plain)
+                    .disabled(isReplaying)
                 }
-                .buttonStyle(.plain)
-            }
 
-            roundButton("arrow.uturn.backward", Candy.blue, undo, enabled: !strokes.isEmpty)
-            roundButton("trash.fill", Candy.red, clear, enabled: !strokes.isEmpty)
+                roundButton("arrow.uturn.backward", Candy.blue, undo,
+                            enabled: !strokes.isEmpty && !isReplaying)
+                roundButton("play.fill", Candy.purple, replay,
+                            enabled: !strokes.isEmpty && !isReplaying)
+                roundButton("trash.fill", Candy.red, clear,
+                            enabled: !strokes.isEmpty && !isReplaying)
+            }
+            .padding(.horizontal, 14)
         }
     }
 
@@ -256,30 +310,36 @@ struct CreateDrawingView: View {
         .disabled(!enabled)
     }
 
-    // MARK: Colours
+    // MARK: Eraser sizes
 
-    private var colorRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 14) {
-                ForEach(palette, id: \.id) { item in
-                    let selected = colorID == item.id
-                    Button {
-                        colorID = item.id
-                        if tool == .eraser { tool = .pen }   // picking a colour leaves the eraser
-                    } label: {
-                        Circle().fill(item.color)
-                            .frame(width: 46, height: 46)
-                            .overlay(Circle().stroke(.white, lineWidth: 4))
-                            .overlay(Circle().stroke(Candy.ink, lineWidth: selected ? 3 : 0).padding(-3))
-                            .scaleEffect(selected ? 1.18 : 1.0)
-                            .shadow(color: .black.opacity(0.15), radius: 3, y: 2)
-                            .animation(.spring(response: 0.3), value: colorID)
+    private var eraserSizeRow: some View {
+        VStack(spacing: 4) {
+            Text("Eraser Size")
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .foregroundStyle(Candy.ink.opacity(0.6))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(eraserSizes, id: \.self) { size in
+                        let selected = eraserWidth == size
+                        Button { eraserWidth = size; Haptics.tap() } label: {
+                            ZStack {
+                                Circle().fill(.white)
+                                Circle().fill(Candy.teal.gradient)
+                                    .frame(width: 10 + size * 0.45, height: 10 + size * 0.45)
+                            }
+                            .frame(width: 54, height: 54)
+                            .overlay(Circle().stroke(selected ? Candy.ink : .white,
+                                                     lineWidth: selected ? 3 : 2))
+                            .scaleEffect(selected ? 1.08 : 1.0)
+                            .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+                            .animation(.spring(response: 0.3), value: eraserWidth)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 6)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
         }
     }
 
@@ -289,13 +349,62 @@ struct CreateDrawingView: View {
         guard !strokes.isEmpty else { return }
         strokes.removeLast()
         Haptics.tap()
+        saveDraft()
     }
 
     private func clear() {
         guard !strokes.isEmpty else { return }
         strokes.removeAll()
         Haptics.tap()
+        saveDraft()
     }
+
+    /// Replays the drawing stroke by stroke from a blank page.
+    private func replay() {
+        let saved = strokes
+        guard !saved.isEmpty, !isReplaying else { return }
+        isReplaying = true
+        strokes = []
+        Task { @MainActor in
+            for stroke in saved {
+                strokes.append(stroke)
+                Haptics.tap()
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+            isReplaying = false
+        }
+    }
+
+    // MARK: Persistence
+
+    private func loadDraftIfNeeded() {
+        guard !didLoad, canvasSize != .zero else { return }
+        didLoad = true
+        guard strokes.isEmpty, let draft = CanvasDraftStore.shared.load(),
+              draft.width > 0, draft.height > 0 else { return }
+        let sx = canvasSize.width / draft.width
+        let sy = canvasSize.height / draft.height
+        strokes = draft.strokes.map { dto in
+            DrawStroke(points: dto.pts.map { CGPoint(x: $0[0] * sx, y: $0[1] * sy) },
+                       paint: dto.paint.paint,
+                       width: dto.w * sx,
+                       tool: DrawTool(rawValue: dto.tool) ?? .pen)
+        }
+    }
+
+    private func saveDraft() {
+        guard !isReplaying, canvasSize != .zero else { return }
+        let dto = CanvasDraft(
+            width: Double(canvasSize.width), height: Double(canvasSize.height),
+            strokes: strokes.map { stroke in
+                CanvasStrokeDTO(pts: stroke.points.map { [Double($0.x), Double($0.y)] },
+                                paint: PaintDTO(stroke.paint),
+                                w: Double(stroke.width), tool: stroke.tool.rawValue)
+            })
+        CanvasDraftStore.shared.save(dto)
+    }
+
+    // MARK: Save / share
 
     @MainActor private func renderArtwork() -> UIImage? {
         let size = canvasSize == .zero ? CGSize(width: 1000, height: 1000) : canvasSize
@@ -340,5 +449,45 @@ struct DrawArtwork: View {
         }
         .frame(width: size.width, height: size.height)
         .background(Color.white)
+    }
+}
+
+// MARK: - Persisted draft of the free-draw canvas
+
+struct CanvasStrokeDTO: Codable {
+    var pts: [[Double]]   // points in canvas coordinates at save time
+    var paint: PaintDTO
+    var w: Double
+    var tool: String
+}
+
+struct CanvasDraft: Codable {
+    var width: Double     // canvas size the points were captured at
+    var height: Double
+    var strokes: [CanvasStrokeDTO]
+}
+
+/// Persists the in-progress "Create Your Own Drawing" so it survives leaving
+/// the screen. Cleared only when the child empties the canvas.
+final class CanvasDraftStore {
+    static let shared = CanvasDraftStore()
+    private let url: URL
+
+    init() {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        url = docs.appendingPathComponent("canvas_draft.json")
+    }
+
+    func save(_ draft: CanvasDraft) {
+        if draft.strokes.isEmpty {
+            try? FileManager.default.removeItem(at: url)
+            return
+        }
+        if let data = try? JSONEncoder().encode(draft) { try? data.write(to: url) }
+    }
+
+    func load() -> CanvasDraft? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(CanvasDraft.self, from: data)
     }
 }
