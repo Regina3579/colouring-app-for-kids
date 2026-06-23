@@ -177,7 +177,7 @@ enum Categories {
         ("princess_moon", "Moon Princess", "🌙", Color(red: 0.86, green: 0.86, blue: 1.0)),
         ("princess_rose", "Rose Princess", "🌹", Color(red: 1.0, green: 0.82, blue: 0.86)),
         ("princess_snow", "Snow Princess", "❄️", Color(red: 0.84, green: 0.92, blue: 1.0)),
-        ("princess_mermaid", "Garden Princess", "🌷", Color(red: 0.86, green: 0.94, blue: 0.84)),
+        ("princess_mermaid", "Mermaid Princess", "🧜‍♀️", Color(red: 0.78, green: 0.92, blue: 0.96)),
     ]
 
     private static let princessImageItems: [CategoryItem] = princessImageSpecs.map {
