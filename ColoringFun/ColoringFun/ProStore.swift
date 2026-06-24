@@ -99,7 +99,7 @@ final class ProStore: ObservableObject {
         Task.detached { [weak self] in
             for await update in Transaction.updates {
                 guard let self else { continue }
-                if let transaction = try? await self.checkVerified(update) {
+                if let transaction = try? self.checkVerified(update) {
                     await transaction.finish()
                     await self.refreshEntitlements()
                 }
