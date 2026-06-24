@@ -38,13 +38,13 @@ struct ColoringScreen: View {
                                    undoStack.append(ColorStep(id: id, old: old, new: new))
                                    redoStack.removeAll()
                                })
+                .danceWhenFinished(celebrating)
                 .allowsHitTesting(!isReplaying)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                .danceWhenFinished(celebrating)
                 .overlay(alignment: .topTrailing) {
                     DoneTickButton(enabled: !fills.isEmpty && !isReplaying,
                                    action: startCelebration)

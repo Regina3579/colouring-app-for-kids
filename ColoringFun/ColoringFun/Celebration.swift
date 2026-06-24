@@ -103,16 +103,19 @@ struct CelebrationOverlay: View {
     }
 }
 
-/// Drives a short happy wiggle/bounce ("dance") on a finished picture.
+/// Drives a cheerful cartoon "happy dance" on the finished character: a little
+/// squash-and-stretch, two bouncy hops and a side-to-side wiggle — anchored at
+/// the bottom so it looks like the character is jumping for joy in place.
 struct DanceModifier: ViewModifier {
     let dancing: Bool
+    @State private var scaleX: CGFloat = 1
+    @State private var scaleY: CGFloat = 1
     @State private var angle: Double = 0
-    @State private var scale: CGFloat = 1
 
     func body(content: Content) -> some View {
         content
-            .rotationEffect(.degrees(angle))
-            .scaleEffect(scale)
+            .rotationEffect(.degrees(angle), anchor: .bottom)
+            .scaleEffect(CGSize(width: scaleX, height: scaleY), anchor: .bottom)
             .onChange(of: dancing) { _, isDancing in
                 if isDancing { dance() }
             }
@@ -120,13 +123,30 @@ struct DanceModifier: ViewModifier {
 
     private func dance() {
         Task { @MainActor in
-            for _ in 0..<5 {
-                withAnimation(.easeInOut(duration: 0.16)) { angle = 5; scale = 1.05 }
-                try? await Task.sleep(nanoseconds: 160_000_000)
-                withAnimation(.easeInOut(duration: 0.16)) { angle = -5; scale = 1.03 }
-                try? await Task.sleep(nanoseconds: 160_000_000)
+            // Anticipation: a little crouch.
+            withAnimation(.easeOut(duration: 0.15)) { scaleX = 1.06; scaleY = 0.92 }
+            try? await Task.sleep(nanoseconds: 150_000_000)
+
+            // Two bouncy hops (stretch up, then squash on landing).
+            for i in 0..<2 {
+                withAnimation(.spring(response: 0.26, dampingFraction: 0.55)) {
+                    scaleX = 0.95; scaleY = 1.10; angle = (i == 0 ? 3 : -3)
+                }
+                try? await Task.sleep(nanoseconds: 260_000_000)
+                withAnimation(.easeIn(duration: 0.16)) { scaleX = 1.05; scaleY = 0.94; angle = 0 }
+                try? await Task.sleep(nanoseconds: 170_000_000)
             }
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.5)) { angle = 0; scale = 1 }
+
+            // Happy side-to-side wiggle.
+            for a in [5.0, -5.0, 4.0, -4.0, 0.0] {
+                withAnimation(.easeInOut(duration: 0.12)) { angle = a; scaleX = 1; scaleY = 1 }
+                try? await Task.sleep(nanoseconds: 120_000_000)
+            }
+
+            // Settle back with a soft spring.
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.5)) {
+                scaleX = 1; scaleY = 1; angle = 0
+            }
         }
     }
 }

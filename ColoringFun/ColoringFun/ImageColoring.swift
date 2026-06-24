@@ -476,13 +476,13 @@ struct ImageColoringScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             ImageColoringCanvas(model: model, selectedPaint: selectedPaint, tool: tool)
+                .danceWhenFinished(celebrating)
                 .allowsHitTesting(!isReplaying)
                 .padding(10)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                .danceWhenFinished(celebrating)
                 .overlay(alignment: .topTrailing) {
                     DoneTickButton(enabled: model.hasPaint && !isReplaying,
                                    action: startCelebration)
