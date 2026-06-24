@@ -1,52 +1,145 @@
 import SwiftUI
+import StoreKit
 
-/// Tracks whether Coloring Fun Pro is unlocked (persisted locally).
-final class ProStore: ObservableObject {
-    static let shared = ProStore()
-    private let key = "proUnlocked"
-    private let planKey = "proPlan"
+// MARK: - Legal links shown on the Pro page (Apple requires functional links)
 
-    @Published var isUnlocked: Bool {
-        didSet { UserDefaults.standard.set(isUnlocked, forKey: key) }
-    }
-
-    /// The plan the user subscribed to (for display only).
-    @Published var planName: String {
-        didSet { UserDefaults.standard.set(planName, forKey: planKey) }
-    }
-
-    init() {
-        isUnlocked = UserDefaults.standard.bool(forKey: key)
-        planName = UserDefaults.standard.string(forKey: planKey) ?? ""
-    }
-
-    func unlock(plan: ProPlan) {
-        planName = plan.title
-        isUnlocked = true
-    }
+enum ProLinks {
+    // ‼️ REPLACE these with your real hosted pages before submitting to review.
+    static let privacy = URL(string: "https://example.com/privacy")!
+    static let terms   = URL(string: "https://example.com/terms")!
 }
 
-/// A Pro subscription option.
+/// Unlocks "Coloring Fun Pro" via real StoreKit auto-renewable subscriptions.
+/// `isUnlocked` reflects the App Store entitlement (not a local flag), so it
+/// survives reinstalls and works across the user's devices.
+@MainActor
+final class ProStore: ObservableObject {
+    static let shared = ProStore()
+
+    static let monthlyID = "com.kidscoloring.ColoringFun.pro.monthly"
+    static let yearlyID  = "com.kidscoloring.ColoringFun.pro.yearly"
+    static let productIDs = [yearlyID, monthlyID]
+
+    @Published private(set) var isUnlocked = false
+    @Published private(set) var products: [Product] = []
+    @Published private(set) var isLoadingProducts = false
+    @Published var purchaseError: String?
+
+    private var updatesTask: Task<Void, Never>?
+
+    private init() {
+        updatesTask = listenForTransactions()
+        Task {
+            await loadProducts()
+            await refreshEntitlements()
+        }
+    }
+
+    func product(for id: String) -> Product? { products.first { $0.id == id } }
+
+    /// Fetches the subscription products from the App Store.
+    func loadProducts() async {
+        isLoadingProducts = true
+        defer { isLoadingProducts = false }
+        do {
+            let fetched = try await Product.products(for: Self.productIDs)
+            // Keep our preferred order (yearly first, then monthly).
+            products = Self.productIDs.compactMap { id in fetched.first { $0.id == id } }
+        } catch {
+            purchaseError = "Couldn't load subscriptions. Please check your connection and try again."
+        }
+    }
+
+    /// Starts a purchase for the given product.
+    func purchase(_ product: Product) async {
+        do {
+            let result = try await product.purchase()
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+                await transaction.finish()
+                await refreshEntitlements()
+            case .userCancelled, .pending:
+                break
+            @unknown default:
+                break
+            }
+        } catch {
+            purchaseError = "Purchase couldn't be completed. Please try again."
+        }
+    }
+
+    /// Restores previous purchases (required by App Review).
+    func restore() async {
+        do {
+            try await AppStore.sync()
+        } catch {
+            // A cancelled sync throws — nothing to report.
+        }
+        await refreshEntitlements()
+        if !isUnlocked {
+            purchaseError = "No active subscription was found to restore."
+        }
+    }
+
+    /// Recomputes `isUnlocked` from the current App Store entitlements.
+    func refreshEntitlements() async {
+        var active = false
+        for await result in Transaction.currentEntitlements {
+            if let transaction = try? checkVerified(result),
+               Self.productIDs.contains(transaction.productID),
+               transaction.revocationDate == nil {
+                active = true
+            }
+        }
+        isUnlocked = active
+    }
+
+    private func listenForTransactions() -> Task<Void, Never> {
+        Task.detached { [weak self] in
+            for await update in Transaction.updates {
+                guard let self else { continue }
+                if let transaction = try? await self.checkVerified(update) {
+                    await transaction.finish()
+                    await self.refreshEntitlements()
+                }
+            }
+        }
+    }
+
+    nonisolated private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .verified(let safe): return safe
+        case .unverified:         throw StoreError.failedVerification
+        }
+    }
+
+    enum StoreError: Error { case failedVerification }
+}
+
+// MARK: - A Pro subscription option (display + product id)
+
 struct ProPlan: Identifiable, Equatable {
-    let id: String
+    let id: String             // == StoreKit product id
     let title: String          // e.g. "Yearly"
-    let price: String          // e.g. "₹594"
+    let fallbackPrice: String  // shown until StoreKit prices load
     let period: String         // e.g. "per year"
-    let subtitle: String?      // e.g. "Just ₹49.50 / month"
-    let badge: String?         // e.g. "50% OFF"
+    let subtitle: String?
+    let badge: String?
 
     static let monthly = ProPlan(
-        id: "monthly", title: "Monthly", price: "₹99", period: "per month",
-        subtitle: "Billed every month", badge: nil)
+        id: ProStore.monthlyID, title: "Monthly", fallbackPrice: "₹99",
+        period: "per month", subtitle: "Billed every month", badge: nil)
 
     static let yearly = ProPlan(
-        id: "yearly", title: "Yearly", price: "₹594", period: "per year",
-        subtitle: "Just ₹49.50 / month", badge: "50% OFF")
+        id: ProStore.yearlyID, title: "Yearly", fallbackPrice: "₹594",
+        period: "per year", subtitle: "Just ₹49.50 / month", badge: "50% OFF")
 
     static let all: [ProPlan] = [.yearly, .monthly]
 }
 
-/// One feature highlighted on the Pro page.
+// MARK: - Feature list
+
 private struct ProFeature: Identifiable {
     let id = UUID()
     let icon: String
@@ -62,11 +155,17 @@ private let proFeatures: [ProFeature] = [
     ProFeature(icon: "hand.thumbsup.fill", text: "No ads — just happy colouring"),
 ]
 
-/// The Pro page: shows features and the monthly / yearly subscription plans.
+// MARK: - The Pro page
+
 struct ProUnlockView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var pro = ProStore.shared
     @State private var selected: ProPlan = .yearly
+    @State private var working = false
+
+    private func price(for plan: ProPlan) -> String {
+        pro.product(for: plan.id)?.displayPrice ?? plan.fallbackPrice
+    }
 
     var body: some View {
         ZStack {
@@ -79,35 +178,43 @@ struct ProUnlockView: View {
                 unlockedState
             } else {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 18) {
                         header
                         featureList
                         VStack(spacing: 12) {
                             ForEach(ProPlan.all) { plan in
-                                PlanRow(plan: plan, isSelected: selected == plan) {
-                                    selected = plan
-                                }
+                                PlanRow(plan: plan, price: price(for: plan),
+                                        isSelected: selected == plan) { selected = plan }
                             }
                         }
                         .padding(.horizontal, 22)
+
                         subscribeButton
-                        Text("Cancel anytime. Subscription unlocks every Pro feature.")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Candy.ink.opacity(0.5))
-                            .padding(.horizontal, 30)
-                        Button("Maybe later") { dismiss() }
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Candy.ink.opacity(0.6))
-                            .padding(.bottom, 16)
+
+                        Button { Task { working = true; await pro.restore(); working = false } } label: {
+                            Text("Restore Purchases")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(Candy.purple)
+                        }
+                        .disabled(working)
+
+                        legalText
                     }
                     .padding(.top, 18)
+                    .padding(.bottom, 24)
                 }
+                .overlay { if working { ProgressView().scaleEffect(1.4) } }
             }
+        }
+        .alert("Oops", isPresented: Binding(get: { pro.purchaseError != nil },
+                                            set: { if !$0 { pro.purchaseError = nil } })) {
+            Button("OK", role: .cancel) { pro.purchaseError = nil }
+        } message: {
+            Text(pro.purchaseError ?? "")
         }
     }
 
-    // MARK: - Pieces
+    // MARK: Pieces
 
     private var header: some View {
         VStack(spacing: 10) {
@@ -156,20 +263,54 @@ struct ProUnlockView: View {
 
     private var subscribeButton: some View {
         Button {
-            pro.unlock(plan: selected)
+            guard let product = pro.product(for: selected.id) else { return }
+            working = true
+            Task { await pro.purchase(product); working = false }
         } label: {
-            Text("Subscribe \(selected.title) • \(selected.price)")
-                .font(.system(size: 19, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(
-                    LinearGradient(colors: [Candy.pink, Candy.purple],
-                                   startPoint: .leading, endPoint: .trailing),
-                    in: RoundedRectangle(cornerRadius: 22))
-                .shadow(color: Candy.purple.opacity(0.4), radius: 5, y: 3)
+            Group {
+                if pro.isLoadingProducts && pro.product(for: selected.id) == nil {
+                    Text("Loading…")
+                } else {
+                    Text("Subscribe \(selected.title) • \(price(for: selected))")
+                }
+            }
+            .font(.system(size: 19, weight: .heavy, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .background(
+                LinearGradient(colors: [Candy.pink, Candy.purple],
+                               startPoint: .leading, endPoint: .trailing),
+                in: RoundedRectangle(cornerRadius: 22))
+            .shadow(color: Candy.purple.opacity(0.4), radius: 5, y: 3)
         }
+        .disabled(working || pro.product(for: selected.id) == nil)
+        .opacity(pro.product(for: selected.id) == nil ? 0.6 : 1)
         .padding(.horizontal, 22)
+    }
+
+    /// Auto-renew disclosure + required Privacy Policy / Terms links.
+    private var legalText: some View {
+        VStack(spacing: 8) {
+            Text("Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in your Apple ID Account Settings.")
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Candy.ink.opacity(0.55))
+
+            HStack(spacing: 18) {
+                Link("Privacy Policy", destination: ProLinks.privacy)
+                Text("•").foregroundStyle(Candy.ink.opacity(0.4))
+                Link("Terms of Use", destination: ProLinks.terms)
+            }
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(Candy.purple)
+
+            Button("Maybe later") { dismiss() }
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(Candy.ink.opacity(0.6))
+                .padding(.top, 4)
+        }
+        .padding(.horizontal, 28)
     }
 
     private var unlockedState: some View {
@@ -188,9 +329,7 @@ struct ProUnlockView: View {
             Text("You're Pro! 🎉")
                 .font(.system(size: 28, weight: .heavy, design: .rounded))
                 .foregroundStyle(Candy.ink)
-            Text(pro.planName.isEmpty
-                 ? "Every Pro feature is unlocked."
-                 : "\(pro.planName) plan active — every Pro feature is unlocked.")
+            Text("Every Pro feature is unlocked. Thank you for supporting Coloring Fun!")
                 .font(.system(size: 16, weight: .medium, design: .rounded))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(Candy.ink.opacity(0.7))
@@ -213,6 +352,7 @@ struct ProUnlockView: View {
 /// A selectable subscription plan row.
 private struct PlanRow: View {
     let plan: ProPlan
+    let price: String
     let isSelected: Bool
     let action: () -> Void
 
@@ -244,7 +384,7 @@ private struct PlanRow: View {
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(Candy.green, in: Capsule())
                     }
-                    Text(plan.price)
+                    Text(price)
                         .font(.system(size: 20, weight: .heavy, design: .rounded))
                         .foregroundStyle(Candy.ink)
                     Text(plan.period)
