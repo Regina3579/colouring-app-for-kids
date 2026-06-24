@@ -171,6 +171,16 @@ final class FloodFillModel: ObservableObject {
 
         if tool == .eraser {
             for idx in region { let o = idx * 4; paint[o] = 0; paint[o+1] = 0; paint[o+2] = 0; paint[o+3] = 0 }
+            // Also remove any animated twinkle sparkles sitting in this region,
+            // otherwise glitter keeps shimmering over the erased area.
+            if !anchors.isEmpty {
+                let erased = Set(region)
+                anchors.removeAll { a in
+                    let ax = min(w - 1, max(0, Int(a.x * CGFloat(w))))
+                    let ay = min(h - 1, max(0, Int(a.y * CGFloat(h))))
+                    return erased.contains(ay * w + ax)
+                }
+            }
         } else {
             switch paintStyle {
             case .solid(let color), .glitter(let color):
