@@ -10,6 +10,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
     case pen      // thin, crisp line
     case brush    // thick, smooth paintbrush stroke
     case crayon   // waxy, textured stroke
+    case fill     // paint-bucket flood fill
     case eraser   // rub colour away
 
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
         case .pen:    return "Pen"
         case .brush:  return "Brush"
         case .crayon: return "Crayon"
+        case .fill:   return "Fill"
         case .eraser: return "Eraser"
         }
     }
@@ -28,6 +30,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
         case .pen:    return "✏️"
         case .brush:  return "🖌️"
         case .crayon: return "🖍️"
+        case .fill:   return "🪣"
         case .eraser: return "🧽"
         }
     }
@@ -38,7 +41,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
         case .pen:    return 6
         case .brush:  return 26
         case .crayon: return 16
-        case .eraser: return 34
+        default:      return 6
         }
     }
 
@@ -47,6 +50,7 @@ enum DrawTool: String, CaseIterable, Identifiable {
         case .pen:    return Candy.blue
         case .brush:  return Candy.pink
         case .crayon: return Candy.orange
+        case .fill:   return Candy.green
         case .eraser: return Candy.teal
         }
     }
@@ -59,6 +63,12 @@ struct DrawStroke: Identifiable {
     var paint: Paint
     var width: CGFloat
     var tool: DrawTool
+}
+
+/// One paint-bucket fill (point is normalized 0…1 in the canvas).
+struct FillOp: Equatable {
+    var point: CGPoint
+    var paint: Paint
 }
 
 /// A sticker the child stuck onto the drawing.
@@ -78,11 +88,12 @@ enum Stickers {
         "🌸", "🌺", "🌼", "🌷", "🌻", "🌹", "🏵️", "🌿",
         "🦋", "🐱", "🐰", "🐻", "🐶", "🐥", "🐞", "🐝",
         "❄️", "☀️", "🌙", "☁️", "🍓", "🍒", "🧁", "🍭",
-        "🍩", "🎂", "💎", "🔮", "🍬", "🌟", "🐢", "🐠",
+        "🍩", "🎂", "💎", "🔮", "🍬", "🐢", "🐠", "🌟",
     ]
 }
 
-/// Shared rendering so the live canvas and the exported image look identical.
+// MARK: - Stroke rendering (shared by live canvas + export)
+
 enum DrawingRender {
     static func path(for stroke: DrawStroke) -> Path {
         var p = Path()
@@ -98,7 +109,6 @@ enum DrawingRender {
         return p
     }
 
-    /// A shading for the stroke's paint (solid, gradient, glitter or fancy glitter).
     private static func shading(for paint: Paint, bounds: CGRect) -> GraphicsContext.Shading {
         switch paint {
         case .solid(let c):   return .color(c)
@@ -119,7 +129,6 @@ enum DrawingRender {
         let width = stroke.width
         let style = StrokeStyle(lineWidth: width, lineCap: .round, lineJoin: .round)
 
-        // The eraser always paints the white page back in.
         if stroke.tool == .eraser {
             if stroke.points.count == 1 { ctx.fill(path, with: .color(.white)) }
             else { ctx.stroke(path, with: .color(.white), style: style) }
@@ -142,7 +151,6 @@ enum DrawingRender {
         if stroke.paint.sparkles { drawSparkles(stroke, in: &ctx) }
     }
 
-    /// Scatters little sparkles along a glitter stroke (stable across redraws).
     private static func drawSparkles(_ stroke: DrawStroke, in ctx: inout GraphicsContext) {
         let colors: [Color]
         switch stroke.paint {
@@ -164,14 +172,113 @@ enum DrawingRender {
     }
 }
 
+// MARK: - Paint-bucket flood fill over the freehand strokes
+
+enum FreeFill {
+    /// Renders all bucket fills (bounded by the drawn lines) into one image.
+    static func render(size: CGSize, strokes: [DrawStroke], ops: [(CGPoint, Paint)]) -> UIImage? {
+        guard size.width > 1, size.height > 1, !ops.isEmpty else { return nil }
+        let s = min(2.0, 700.0 / max(size.width, size.height))
+        let W = max(1, Int(size.width * s)), H = max(1, Int(size.height * s))
+
+        // 1) Barrier bitmap: drawn (non-eraser) lines act as walls.
+        let fmt = UIGraphicsImageRendererFormat.default()
+        fmt.scale = 1; fmt.opaque = true
+        let barrierImg = UIGraphicsImageRenderer(size: CGSize(width: W, height: H), format: fmt).image { c in
+            let ctx = c.cgContext
+            UIColor.white.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: W, height: H))
+            ctx.setLineCap(.round); ctx.setLineJoin(.round)
+            ctx.setStrokeColor(UIColor.black.cgColor)
+            ctx.setFillColor(UIColor.black.cgColor)
+            for stroke in strokes where stroke.tool != .eraser {
+                let pts = stroke.points.map { CGPoint(x: $0.x * s, y: $0.y * s) }
+                guard let first = pts.first else { continue }
+                if pts.count == 1 {
+                    let r = stroke.width * s / 2
+                    ctx.fillEllipse(in: CGRect(x: first.x - r, y: first.y - r, width: r * 2, height: r * 2))
+                } else {
+                    ctx.setLineWidth(max(1, stroke.width * s))
+                    ctx.beginPath(); ctx.move(to: first)
+                    for p in pts.dropFirst() { ctx.addLine(to: p) }
+                    ctx.strokePath()
+                }
+            }
+        }
+        guard let cg = barrierImg.cgImage else { return nil }
+
+        var px = [UInt8](repeating: 255, count: W * H * 4)
+        px.withUnsafeMutableBytes { raw in
+            if let c = CGContext(data: raw.baseAddress, width: W, height: H, bitsPerComponent: 8,
+                                 bytesPerRow: W * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
+                c.draw(cg, in: CGRect(x: 0, y: 0, width: W, height: H))
+            }
+        }
+        var barrier = [Bool](repeating: false, count: W * H)
+        for i in 0..<(W * H) {
+            let o = i * 4
+            let lum = Int(px[o]) * 30 + Int(px[o + 1]) * 59 + Int(px[o + 2]) * 11
+            barrier[i] = lum < 12000
+        }
+
+        // 2) Flood each fill into an RGBA buffer.
+        var fill = [UInt8](repeating: 0, count: W * H * 4)
+        var visited = [Bool](repeating: false, count: W * H)
+        for (point, paint) in ops {
+            for i in visited.indices { visited[i] = false }
+            let sx = min(W - 1, max(0, Int(point.x * CGFloat(W))))
+            let sy = min(H - 1, max(0, Int(point.y * CGFloat(H))))
+            let start = sy * W + sx
+            if barrier[start] { continue }
+            let (r, g, b) = bytes(paint)
+            var stack = [start]; visited[start] = true
+            while let i = stack.popLast() {
+                let o = i * 4; fill[o] = r; fill[o + 1] = g; fill[o + 2] = b; fill[o + 3] = 255
+                let x = i % W, y = i / W
+                if x > 0,     !barrier[i - 1], !visited[i - 1] { visited[i - 1] = true; stack.append(i - 1) }
+                if x < W - 1, !barrier[i + 1], !visited[i + 1] { visited[i + 1] = true; stack.append(i + 1) }
+                if y > 0,     !barrier[i - W], !visited[i - W] { visited[i - W] = true; stack.append(i - W) }
+                if y < H - 1, !barrier[i + W], !visited[i + W] { visited[i + W] = true; stack.append(i + W) }
+            }
+        }
+
+        var out: UIImage?
+        fill.withUnsafeMutableBytes { raw in
+            if let c = CGContext(data: raw.baseAddress, width: W, height: H, bitsPerComponent: 8,
+                                 bytesPerRow: W * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+               let img = c.makeImage() {
+                out = UIImage(cgImage: img)
+            }
+        }
+        return out
+    }
+
+    private static func bytes(_ paint: Paint) -> (UInt8, UInt8, UInt8) {
+        let color = paint.colors.first ?? .black
+        #if canImport(UIKit)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (UInt8(max(0, min(1, r)) * 255), UInt8(max(0, min(1, g)) * 255), UInt8(max(0, min(1, b)) * 255))
+        #else
+        return (0, 0, 0)
+        #endif
+    }
+}
+
 /// Base on-screen point size for a sticker at scale 1 (shared by canvas + export).
 private let stickerBaseSize: CGFloat = 64
+
+private enum DrawActionKind { case stroke, fill }
 
 // MARK: - The blank-canvas drawing screen (Pro)
 
 struct CreateDrawingView: View {
     @State private var strokes: [DrawStroke] = []
     @State private var live: DrawStroke?
+    @State private var fillOps: [FillOp] = []
+    @State private var fillImage: UIImage?
+    @State private var actionLog: [DrawActionKind] = []
     @State private var stickers: [PlacedSticker] = []
     @State private var selectedSticker: UUID?
     @State private var showStickers = false
@@ -188,10 +295,9 @@ struct CreateDrawingView: View {
     @State private var alertTitle = ""
     @State private var alertMessage = ""
 
-    /// Eraser sizes from tiny to big.
     private let eraserSizes: [CGFloat] = [12, 24, 38, 56, 76]
 
-    private var isEmpty: Bool { strokes.isEmpty && stickers.isEmpty }
+    private var isEmpty: Bool { strokes.isEmpty && stickers.isEmpty && fillOps.isEmpty }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -202,7 +308,6 @@ struct CreateDrawingView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 6))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
-                .overlay(alignment: .top) { stickerActionBar }
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
 
@@ -260,6 +365,12 @@ struct CreateDrawingView: View {
     private var canvas: some View {
         GeometryReader { geo in
             ZStack {
+                if let fillImage {
+                    Image(uiImage: fillImage)
+                        .resizable()
+                        .interpolation(.medium)
+                        .allowsHitTesting(false)
+                }
                 Canvas { ctx, _ in
                     for stroke in strokes { DrawingRender.draw(stroke, in: &ctx) }
                     if let live { DrawingRender.draw(live, in: &ctx) }
@@ -270,7 +381,8 @@ struct CreateDrawingView: View {
                 ForEach($stickers) { $sticker in
                     StickerView(sticker: $sticker,
                                 isSelected: selectedSticker == sticker.id,
-                                onSelect: { selectedSticker = sticker.id })
+                                onSelect: { selectedSticker = sticker.id },
+                                onDelete: { removeSticker(sticker.id) })
                 }
             }
             .onAppear { canvasSize = geo.size; loadDraftIfNeeded() }
@@ -283,6 +395,7 @@ struct CreateDrawingView: View {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 guard !isReplaying else { return }
+                if tool == .fill { selectedSticker = nil; return }
                 if live == nil {
                     selectedSticker = nil
                     let width = tool == .eraser ? eraserWidth : tool.lineWidth
@@ -292,36 +405,14 @@ struct CreateDrawingView: View {
                     live?.points.append(value.location)
                 }
             }
-            .onEnded { _ in
-                if let finished = live { strokes.append(finished) }
+            .onEnded { value in
+                guard !isReplaying else { return }
+                if tool == .fill { applyFill(at: value.location); return }
+                if let finished = live { strokes.append(finished); actionLog.append(.stroke) }
                 live = nil
                 Haptics.tap()
                 saveDraft()
             }
-    }
-
-    /// Floating Remove / Done bar shown while a sticker is selected.
-    @ViewBuilder private var stickerActionBar: some View {
-        if selectedSticker != nil {
-            HStack(spacing: 10) {
-                Button { removeSelectedSticker() } label: {
-                    Label("Remove", systemImage: "trash.fill")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14).padding(.vertical, 9)
-                        .background(Candy.red, in: Capsule())
-                }
-                Button { selectedSticker = nil } label: {
-                    Text("Done")
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16).padding(.vertical, 9)
-                        .background(Candy.green, in: Capsule())
-                }
-            }
-            .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
-            .padding(.top, 14)
-        }
     }
 
     // MARK: Tools
@@ -356,7 +447,15 @@ struct CreateDrawingView: View {
                 // Stickers
                 Button { showStickers = true } label: {
                     VStack(spacing: 2) {
-                        Text("✨").font(.system(size: 23))
+                        ZStack {
+                            Image(systemName: "seal.fill")
+                                .font(.system(size: 26))
+                                .foregroundStyle(.white)
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Candy.yellow)
+                        }
+                        .frame(height: 24)
                         Text("Stickers").font(.system(size: 10, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
                     }
@@ -373,7 +472,7 @@ struct CreateDrawingView: View {
                 .disabled(isReplaying)
 
                 roundButton("arrow.uturn.backward", Candy.blue, undo,
-                            enabled: !strokes.isEmpty && !isReplaying)
+                            enabled: !actionLog.isEmpty && !isReplaying)
                 roundButton("play.fill", Candy.purple, replay,
                             enabled: !strokes.isEmpty && !isReplaying)
                 roundButton("trash.fill", Candy.red, clear,
@@ -431,7 +530,25 @@ struct CreateDrawingView: View {
         }
     }
 
-    // MARK: Sticker actions
+    // MARK: Fill
+
+    private func applyFill(at point: CGPoint) {
+        guard !isReplaying, canvasSize.width > 1, canvasSize.height > 1 else { return }
+        let p = CGPoint(x: point.x / canvasSize.width, y: point.y / canvasSize.height)
+        fillOps.append(FillOp(point: p, paint: selectedPaint))
+        actionLog.append(.fill)
+        rebuildFill()
+        Haptics.tap()
+        saveDraft()
+    }
+
+    private func rebuildFill() {
+        guard !fillOps.isEmpty, canvasSize.width > 1 else { fillImage = nil; return }
+        fillImage = FreeFill.render(size: canvasSize, strokes: strokes,
+                                    ops: fillOps.map { ($0.point, $0.paint) })
+    }
+
+    // MARK: Stickers
 
     private func addSticker(_ symbol: String) {
         let base = canvasSize == .zero
@@ -444,18 +561,20 @@ struct CreateDrawingView: View {
         Haptics.tap()
     }
 
-    private func removeSelectedSticker() {
-        guard let id = selectedSticker else { return }
+    private func removeSticker(_ id: UUID) {
         stickers.removeAll { $0.id == id }
-        selectedSticker = nil
+        if selectedSticker == id { selectedSticker = nil }
         Haptics.tap()
     }
 
-    // MARK: Stroke actions
+    // MARK: Undo / clear / replay
 
     private func undo() {
-        guard !strokes.isEmpty else { return }
-        strokes.removeLast()
+        guard let last = actionLog.popLast() else { return }
+        switch last {
+        case .stroke: if !strokes.isEmpty { strokes.removeLast() }
+        case .fill:   if !fillOps.isEmpty { fillOps.removeLast(); rebuildFill() }
+        }
         Haptics.tap()
         saveDraft()
     }
@@ -463,13 +582,15 @@ struct CreateDrawingView: View {
     private func clear() {
         guard !isEmpty else { return }
         strokes.removeAll()
+        fillOps.removeAll()
+        fillImage = nil
+        actionLog.removeAll()
         stickers.removeAll()
         selectedSticker = nil
         Haptics.tap()
         saveDraft()
     }
 
-    /// Replays the strokes one by one from a blank page (stickers stay put).
     private func replay() {
         let saved = strokes
         guard !saved.isEmpty, !isReplaying else { return }
@@ -491,23 +612,24 @@ struct CreateDrawingView: View {
     private func loadDraftIfNeeded() {
         guard !didLoad, canvasSize != .zero else { return }
         didLoad = true
-        guard strokes.isEmpty, stickers.isEmpty,
+        guard strokes.isEmpty, stickers.isEmpty, fillOps.isEmpty,
               let draft = CanvasDraftStore.shared.load(),
               draft.width > 0, draft.height > 0 else { return }
         let sx = canvasSize.width / draft.width
         let sy = canvasSize.height / draft.height
         strokes = draft.strokes.map { dto in
             DrawStroke(points: dto.pts.map { CGPoint(x: $0[0] * sx, y: $0[1] * sy) },
-                       paint: dto.paint.paint,
-                       width: dto.w * sx,
+                       paint: dto.paint.paint, width: dto.w * sx,
                        tool: DrawTool(rawValue: dto.tool) ?? .pen)
         }
+        fillOps = (draft.fills ?? []).map { FillOp(point: CGPoint(x: $0.x, y: $0.y), paint: $0.paint.paint) }
         stickers = (draft.stickers ?? []).map { dto in
             PlacedSticker(symbol: dto.symbol,
                           position: CGPoint(x: dto.x * canvasSize.width, y: dto.y * canvasSize.height),
-                          scale: CGFloat(dto.scale) * sx,
-                          rotation: .radians(dto.rotation))
+                          scale: CGFloat(dto.scale) * sx, rotation: .radians(dto.rotation))
         }
+        actionLog = strokes.map { _ in .stroke } + fillOps.map { _ in .fill }
+        rebuildFill()
     }
 
     private func saveDraft() {
@@ -519,6 +641,8 @@ struct CreateDrawingView: View {
                                 paint: PaintDTO(stroke.paint),
                                 w: Double(stroke.width), tool: stroke.tool.rawValue)
             },
+            fills: fillOps.map { FillOpDTO(x: Double($0.point.x), y: Double($0.point.y),
+                                           paint: PaintDTO($0.paint)) },
             stickers: stickers.map { s in
                 StickerDTO(symbol: s.symbol,
                            x: Double(s.position.x / max(canvasSize.width, 1)),
@@ -532,7 +656,8 @@ struct CreateDrawingView: View {
 
     @MainActor private func renderArtwork() -> UIImage? {
         let size = canvasSize == .zero ? CGSize(width: 1000, height: 1000) : canvasSize
-        let renderer = ImageRenderer(content: DrawArtwork(strokes: strokes, stickers: stickers, size: size))
+        let renderer = ImageRenderer(content:
+            DrawArtwork(strokes: strokes, stickers: stickers, fillImage: fillImage, size: size))
         renderer.scale = max(UIScreen.main.scale, 2) * 1.5
         return renderer.uiImage
     }
@@ -561,12 +686,13 @@ struct CreateDrawingView: View {
     }
 }
 
-// MARK: - One sticker on the canvas (drag to move, pinch to scale, twist to rotate)
+// MARK: - One sticker (drag to move, pinch to resize, twist to rotate, ✕ to remove)
 
 private struct StickerView: View {
     @Binding var sticker: PlacedSticker
     let isSelected: Bool
     let onSelect: () -> Void
+    let onDelete: () -> Void
 
     @GestureState private var drag: CGSize = .zero
     @GestureState private var pinch: CGFloat = 1
@@ -575,36 +701,49 @@ private struct StickerView: View {
     var body: some View {
         Text(sticker.symbol)
             .font(.system(size: stickerBaseSize))
-            .padding(6)
+            .padding(8)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(Candy.purple, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                if isSelected {
+                    Button(action: onDelete) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 22))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, Candy.red)
+                            .background(Circle().fill(.white).padding(4))
+                    }
+                    .buttonStyle(.plain)
+                    .offset(x: 10, y: -10)
+                }
+            }
+            .contentShape(Rectangle())
             .scaleEffect(sticker.scale * pinch)
             .rotationEffect(sticker.rotation + twist)
             .position(x: sticker.position.x + drag.width, y: sticker.position.y + drag.height)
-            .gesture(
-                DragGesture()
-                    .onChanged { _ in onSelect() }
-                    .updating($drag) { v, s, _ in s = v.translation }
-                    .onEnded { v in
-                        sticker.position.x += v.translation.width
-                        sticker.position.y += v.translation.height
-                    }
-            )
-            .simultaneousGesture(
-                MagnifyGesture()
-                    .updating($pinch) { v, s, _ in s = v.magnification }
-                    .onEnded { v in sticker.scale = min(4, max(0.4, sticker.scale * v.magnification)) }
-            )
-            .simultaneousGesture(
-                RotateGesture()
-                    .updating($twist) { v, s, _ in s = v.rotation }
-                    .onEnded { v in sticker.rotation += v.rotation }
-            )
+            .gesture(moveScaleRotate)
             .onTapGesture { onSelect() }
+    }
+
+    private var moveScaleRotate: some Gesture {
+        let d = DragGesture()
+            .onChanged { _ in onSelect() }
+            .updating($drag) { v, s, _ in s = v.translation }
+            .onEnded { v in
+                sticker.position.x += v.translation.width
+                sticker.position.y += v.translation.height
+            }
+        let m = MagnifyGesture()
+            .updating($pinch) { v, s, _ in s = v.magnification }
+            .onEnded { v in sticker.scale = min(5, max(0.3, sticker.scale * v.magnification)) }
+        let r = RotateGesture()
+            .updating($twist) { v, s, _ in s = v.rotation }
+            .onEnded { v in sticker.rotation += v.rotation }
+        return d.simultaneously(with: m).simultaneously(with: r)
     }
 }
 
@@ -649,7 +788,7 @@ private struct StickerPicker: View {
                                startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
             )
-            .navigationTitle("✨ Stickers")
+            .navigationTitle("Stickers")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -662,15 +801,19 @@ private struct StickerPicker: View {
     }
 }
 
-/// Renders the strokes and stickers onto a white page for export/sharing.
+/// Renders the fills, strokes and stickers onto a white page for export/sharing.
 struct DrawArtwork: View {
     let strokes: [DrawStroke]
     let stickers: [PlacedSticker]
+    let fillImage: UIImage?
     let size: CGSize
 
     var body: some View {
         Canvas { ctx, sz in
             ctx.fill(Path(CGRect(origin: .zero, size: sz)), with: .color(.white))
+            if let fillImage {
+                ctx.draw(Image(uiImage: fillImage), in: CGRect(origin: .zero, size: sz))
+            }
             for stroke in strokes { DrawingRender.draw(stroke, in: &ctx) }
         }
         .frame(width: size.width, height: size.height)
@@ -690,24 +833,31 @@ struct DrawArtwork: View {
 // MARK: - Persisted draft of the free-draw canvas
 
 struct CanvasStrokeDTO: Codable {
-    var pts: [[Double]]   // points in canvas coordinates at save time
+    var pts: [[Double]]
     var paint: PaintDTO
     var w: Double
     var tool: String
 }
 
+struct FillOpDTO: Codable {
+    var x: Double
+    var y: Double
+    var paint: PaintDTO
+}
+
 struct StickerDTO: Codable {
     var symbol: String
-    var x: Double         // normalized 0…1
+    var x: Double
     var y: Double
     var scale: Double
-    var rotation: Double  // radians
+    var rotation: Double
 }
 
 struct CanvasDraft: Codable {
-    var width: Double     // canvas size the points were captured at
+    var width: Double
     var height: Double
     var strokes: [CanvasStrokeDTO]
+    var fills: [FillOpDTO]?
     var stickers: [StickerDTO]?
 }
 
@@ -723,7 +873,9 @@ final class CanvasDraftStore {
     }
 
     func save(_ draft: CanvasDraft) {
-        if draft.strokes.isEmpty && (draft.stickers?.isEmpty ?? true) {
+        let noStickers = draft.stickers?.isEmpty ?? true
+        let noFills = draft.fills?.isEmpty ?? true
+        if draft.strokes.isEmpty && noStickers && noFills {
             try? FileManager.default.removeItem(at: url)
             return
         }
