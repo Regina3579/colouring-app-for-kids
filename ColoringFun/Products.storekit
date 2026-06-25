@@ -29,7 +29,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.kidscoloring.ColoringFun.pro.yearly",
+          "productID" : "com.regina.ColoringFun.pro.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Pro Yearly",
           "subscriptionGroupID" : "coloringfun-pro-group",
@@ -50,7 +50,7 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.kidscoloring.ColoringFun.pro.monthly",
+          "productID" : "com.regina.ColoringFun.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Pro Monthly",
           "subscriptionGroupID" : "coloringfun-pro-group",
