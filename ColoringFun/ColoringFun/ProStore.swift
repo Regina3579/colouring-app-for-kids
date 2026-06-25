@@ -16,9 +16,9 @@ enum ProLinks {
 final class ProStore: ObservableObject {
     static let shared = ProStore()
 
-    static let monthlyID = "com.kidscoloring.ColoringFun.pro.monthly"
-    static let yearlyID  = "com.kidscoloring.ColoringFun.pro.yearly"
-    static let productIDs = [yearlyID, monthlyID]
+    nonisolated static let monthlyID = "com.kidscoloring.ColoringFun.pro.monthly"
+    nonisolated static let yearlyID  = "com.kidscoloring.ColoringFun.pro.yearly"
+    nonisolated static let productIDs = [yearlyID, monthlyID]
 
     @Published private(set) var isUnlocked = false
     @Published private(set) var products: [Product] = []
