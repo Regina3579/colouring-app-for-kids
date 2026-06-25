@@ -381,8 +381,16 @@ struct CreateDrawingView: View {
                 ForEach($stickers) { $sticker in
                     StickerView(sticker: $sticker,
                                 isSelected: selectedSticker == sticker.id,
-                                onSelect: { selectedSticker = sticker.id },
-                                onDelete: { removeSticker(sticker.id) })
+                                onSelect: { selectedSticker = sticker.id })
+                }
+
+                // Constant-size controls under the selected sticker.
+                if let id = selectedSticker, let s = stickers.first(where: { $0.id == id }) {
+                    StickerControls(center: s.position,
+                                    belowOffset: s.scale * stickerBaseSize / 2 + 30,
+                                    onSmaller: { adjustScale(id, factor: 0.8) },
+                                    onBigger: { adjustScale(id, factor: 1.25) },
+                                    onDelete: { removeSticker(id) })
                 }
             }
             .onAppear { canvasSize = geo.size; loadDraftIfNeeded() }
@@ -567,6 +575,12 @@ struct CreateDrawingView: View {
         Haptics.tap()
     }
 
+    private func adjustScale(_ id: UUID, factor: CGFloat) {
+        guard let i = stickers.firstIndex(where: { $0.id == id }) else { return }
+        stickers[i].scale = min(6, max(0.15, stickers[i].scale * factor))
+        Haptics.tap()
+    }
+
     // MARK: Undo / clear / replay
 
     private func undo() {
@@ -692,7 +706,6 @@ private struct StickerView: View {
     @Binding var sticker: PlacedSticker
     let isSelected: Bool
     let onSelect: () -> Void
-    let onDelete: () -> Void
 
     @GestureState private var drag: CGSize = .zero
     @GestureState private var pinch: CGFloat = 1
@@ -706,19 +719,6 @@ private struct StickerView: View {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 14)
                         .stroke(Candy.purple, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
-                }
-            }
-            .overlay(alignment: .topTrailing) {
-                if isSelected {
-                    Button(action: onDelete) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, Candy.red)
-                            .background(Circle().fill(.white).padding(4))
-                    }
-                    .buttonStyle(.plain)
-                    .offset(x: 10, y: -10)
                 }
             }
             .contentShape(Rectangle())
@@ -739,11 +739,45 @@ private struct StickerView: View {
             }
         let m = MagnifyGesture()
             .updating($pinch) { v, s, _ in s = v.magnification }
-            .onEnded { v in sticker.scale = min(5, max(0.3, sticker.scale * v.magnification)) }
+            .onEnded { v in sticker.scale = min(6, max(0.15, sticker.scale * v.magnification)) }
         let r = RotateGesture()
             .updating($twist) { v, s, _ in s = v.rotation }
             .onEnded { v in sticker.rotation += v.rotation }
         return d.simultaneously(with: m).simultaneously(with: r)
+    }
+}
+
+/// Constant-size −/✕/＋ controls shown beneath the selected sticker so it can
+/// always be made smaller or bigger (and removed), no matter its scale.
+private struct StickerControls: View {
+    let center: CGPoint
+    let belowOffset: CGFloat
+    let onSmaller: () -> Void
+    let onBigger: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            button("minus", Candy.blue, onSmaller)
+            button("xmark", Candy.red, onDelete)
+            button("plus", Candy.green, onBigger)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(.white))
+        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
+        .position(x: center.x, y: center.y + belowOffset)
+    }
+
+    private func button(_ symbol: String, _ tint: Color, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .black))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(tint.gradient))
+        }
+        .buttonStyle(.plain)
     }
 }
 
