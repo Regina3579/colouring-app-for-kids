@@ -115,6 +115,12 @@ final class ProStore: ObservableObject {
     }
 
     enum StoreError: Error { case failedVerification }
+
+#if DEBUG
+    /// Test-only: unlock every Pro feature without paying, so the developer and
+    /// reviewers can explore. NOT compiled into App Store (Release) builds.
+    func developerUnlock() { isUnlocked = true }
+#endif
 }
 
 // MARK: - A Pro subscription option (display + product id)
@@ -197,6 +203,16 @@ struct ProUnlockView: View {
                                 .foregroundStyle(Candy.purple)
                         }
                         .disabled(working)
+
+#if DEBUG
+                        Button { pro.developerUnlock() } label: {
+                            Text("🔓 Unlock Pro (Developer)")
+                                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                                .foregroundStyle(Candy.ink)
+                                .padding(.horizontal, 18).padding(.vertical, 10)
+                                .background(Capsule().stroke(Candy.ink.opacity(0.4), lineWidth: 1.5))
+                        }
+#endif
 
                         legalText
                     }
