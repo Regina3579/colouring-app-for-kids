@@ -330,6 +330,15 @@ enum Palette {
 
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }
+
+    /// Marks every swatch Pro-locked except the first `freeCount`, so kids can
+    /// try a couple for free — and see how the sparkle/pastel colours look —
+    /// before unlocking the rest with Pro.
+    static func proExceptFirst(_ freeCount: Int, _ swatches: [Swatch]) -> [Swatch] {
+        swatches.enumerated().map { index, swatch in
+            Swatch(id: swatch.id, paint: swatch.paint, name: swatch.name, isPro: index >= freeCount)
+        }
+    }
 }
 
 // MARK: - Palette groups shown behind tappable category buttons
@@ -363,11 +372,9 @@ enum PaletteCategory: String, CaseIterable, Identifiable {
     var swatches: [Swatch] {
         switch self {
         case .colours: return Palette.solids
-        case .pastel:  return Palette.pastels
+        case .pastel:  return Palette.proExceptFirst(2, Palette.pastels)
         case .fade:    return Palette.gradients
-        case .glitter: return Palette.glitters.map {
-            Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: true)
-        }
+        case .glitter: return Palette.proExceptFirst(2, Palette.glitters)
         }
     }
 
