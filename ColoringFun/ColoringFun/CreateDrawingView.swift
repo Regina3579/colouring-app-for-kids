@@ -271,6 +271,12 @@ private let stickerBaseSize: CGFloat = 64
 
 private enum DrawActionKind { case stroke, fill }
 
+/// An undone action kept so it can be redone.
+private enum RedoItem {
+    case stroke(DrawStroke)
+    case fill(FillOp)
+}
+
 // MARK: - The blank-canvas drawing screen (Pro)
 
 struct CreateDrawingView: View {
@@ -279,6 +285,7 @@ struct CreateDrawingView: View {
     @State private var fillOps: [FillOp] = []
     @State private var fillImage: UIImage?
     @State private var actionLog: [DrawActionKind] = []
+    @State private var redoStack: [RedoItem] = []
     @State private var stickers: [PlacedSticker] = []
     @State private var selectedSticker: UUID?
     @State private var showStickers = false
@@ -416,7 +423,7 @@ struct CreateDrawingView: View {
             .onEnded { value in
                 guard !isReplaying else { return }
                 if tool == .fill { applyFill(at: value.location); return }
-                if let finished = live { strokes.append(finished); actionLog.append(.stroke) }
+                if let finished = live { strokes.append(finished); actionLog.append(.stroke); redoStack.removeAll() }
                 live = nil
                 Haptics.tap()
                 saveDraft()
@@ -481,6 +488,8 @@ struct CreateDrawingView: View {
 
                 roundButton("arrow.uturn.backward", Candy.blue, undo,
                             enabled: !actionLog.isEmpty && !isReplaying)
+                roundButton("arrow.uturn.forward", Candy.green, redo,
+                            enabled: !redoStack.isEmpty && !isReplaying)
                 roundButton("play.fill", Candy.purple, replay,
                             enabled: !strokes.isEmpty && !isReplaying)
                 roundButton("trash.fill", Candy.red, clear,
@@ -545,6 +554,7 @@ struct CreateDrawingView: View {
         let p = CGPoint(x: point.x / canvasSize.width, y: point.y / canvasSize.height)
         fillOps.append(FillOp(point: p, paint: selectedPaint))
         actionLog.append(.fill)
+        redoStack.removeAll()
         rebuildFill()
         Haptics.tap()
         saveDraft()
@@ -586,8 +596,18 @@ struct CreateDrawingView: View {
     private func undo() {
         guard let last = actionLog.popLast() else { return }
         switch last {
-        case .stroke: if !strokes.isEmpty { strokes.removeLast() }
-        case .fill:   if !fillOps.isEmpty { fillOps.removeLast(); rebuildFill() }
+        case .stroke: if let s = strokes.popLast() { redoStack.append(.stroke(s)) }
+        case .fill:   if let f = fillOps.popLast() { redoStack.append(.fill(f)); rebuildFill() }
+        }
+        Haptics.tap()
+        saveDraft()
+    }
+
+    private func redo() {
+        guard let item = redoStack.popLast() else { return }
+        switch item {
+        case .stroke(let s): strokes.append(s); actionLog.append(.stroke)
+        case .fill(let f):   fillOps.append(f); actionLog.append(.fill); rebuildFill()
         }
         Haptics.tap()
         saveDraft()
@@ -599,6 +619,7 @@ struct CreateDrawingView: View {
         fillOps.removeAll()
         fillImage = nil
         actionLog.removeAll()
+        redoStack.removeAll()
         stickers.removeAll()
         selectedSticker = nil
         Haptics.tap()
