@@ -394,7 +394,7 @@ struct CreateDrawingView: View {
                 // Constant-size controls under the selected sticker.
                 if let id = selectedSticker, let s = stickers.first(where: { $0.id == id }) {
                     StickerControls(center: s.position,
-                                    belowOffset: s.scale * stickerBaseSize / 2 + 30,
+                                    reach: max(30, s.scale * stickerBaseSize / 2 + 16),
                                     onSmaller: { adjustScale(id, factor: 0.8) },
                                     onBigger: { adjustScale(id, factor: 1.25) },
                                     onDelete: { removeSticker(id) })
@@ -768,26 +768,24 @@ private struct StickerView: View {
     }
 }
 
-/// Constant-size −/✕/＋ controls shown beneath the selected sticker so it can
-/// always be made smaller or bigger (and removed), no matter its scale.
+/// Constant-size controls around the selected sticker: ＋ at the top-left,
+/// ✕ (close) at the top-right, and − at the bottom-left.
 private struct StickerControls: View {
     let center: CGPoint
-    let belowOffset: CGFloat
+    let reach: CGFloat        // distance from the centre out to each corner
     let onSmaller: () -> Void
     let onBigger: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            button("minus", Candy.blue, onSmaller)
-            button("xmark", Candy.red, onDelete)
+        ZStack {
             button("plus", Candy.green, onBigger)
+                .position(x: center.x - reach, y: center.y - reach)   // top-left
+            button("xmark", Candy.red, onDelete)
+                .position(x: center.x + reach, y: center.y - reach)   // top-right
+            button("minus", Candy.blue, onSmaller)
+                .position(x: center.x - reach, y: center.y + reach)   // bottom-left
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(.white))
-        .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
-        .position(x: center.x, y: center.y + belowOffset)
     }
 
     private func button(_ symbol: String, _ tint: Color, _ action: @escaping () -> Void) -> some View {
@@ -797,6 +795,8 @@ private struct StickerControls: View {
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(tint.gradient))
+                .overlay(Circle().stroke(.white, lineWidth: 2))
+                .shadow(color: .black.opacity(0.25), radius: 3, y: 1)
         }
         .buttonStyle(.plain)
     }
