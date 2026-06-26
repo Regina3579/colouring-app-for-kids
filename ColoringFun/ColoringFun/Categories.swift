@@ -168,15 +168,15 @@ enum Categories {
 
     // Image-based princess pictures (original characters only).
     private static let princessImageSpecs: [(String, String, String, Color)] = [
-        ("princess_royal", "Royal Princess", "👸", Color(red: 1.0, green: 0.86, blue: 0.78)),
         ("princess_golden", "Golden Princess", "👑", Color(red: 1.0, green: 0.92, blue: 0.70)),
-        ("princess_ocean", "Ocean Princess", "🌊", Color(red: 0.74, green: 0.92, blue: 0.96)),
-        ("princess_butterfly", "Butterfly Princess", "🦋", Color(red: 0.90, green: 0.84, blue: 1.0)),
+        ("princess_royal", "Royal Princess", "👸", Color(red: 1.0, green: 0.86, blue: 0.78)),
         ("princess_swan", "Swan Princess", "🦢", Color(red: 0.88, green: 0.94, blue: 1.0)),
-        ("princess_sunshine", "Sunshine Princess", "☀️", Color(red: 1.0, green: 0.92, blue: 0.72)),
         ("princess_moon", "Moon Princess", "🌙", Color(red: 0.86, green: 0.86, blue: 1.0)),
+        ("princess_sunshine", "Sunshine Princess", "☀️", Color(red: 1.0, green: 0.92, blue: 0.72)),
+        ("princess_ocean", "Ocean Princess", "🌊", Color(red: 0.74, green: 0.92, blue: 0.96)),
         ("princess_rose", "Rose Princess", "🌹", Color(red: 1.0, green: 0.82, blue: 0.86)),
         ("princess_snow", "Snow Princess", "❄️", Color(red: 0.84, green: 0.92, blue: 1.0)),
+        ("princess_butterfly", "Butterfly Princess", "🦋", Color(red: 0.90, green: 0.84, blue: 1.0)),
         ("princess_mermaid", "Mermaid Princess", "🧜‍♀️", Color(red: 0.78, green: 0.92, blue: 0.96)),
     ]
 
