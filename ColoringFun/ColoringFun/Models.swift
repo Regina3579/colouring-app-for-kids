@@ -331,13 +331,15 @@ enum Palette {
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }
 
-    /// Marks every swatch Pro-locked except the first `freeCount`, so kids can
-    /// try a couple for free — and see how the sparkle/pastel colours look —
-    /// before unlocking the rest with Pro.
-    static func proExceptFirst(_ freeCount: Int, _ swatches: [Swatch]) -> [Swatch] {
-        swatches.enumerated().map { index, swatch in
-            Swatch(id: swatch.id, paint: swatch.paint, name: swatch.name, isPro: index >= freeCount)
-        }
+    /// Frees the swatches with the given ids (shown first), locking the rest as
+    /// Pro — so kids can try a couple of clearly different colours before
+    /// unlocking everything.
+    static func freeFirst(_ freeIDs: [String], _ swatches: [Swatch]) -> [Swatch] {
+        let free = freeIDs.compactMap { id in swatches.first { $0.id == id } }
+            .map { Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: false) }
+        let rest = swatches.filter { !freeIDs.contains($0.id) }
+            .map { Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: true) }
+        return free + rest
     }
 }
 
@@ -372,9 +374,9 @@ enum PaletteCategory: String, CaseIterable, Identifiable {
     var swatches: [Swatch] {
         switch self {
         case .colours: return Palette.solids
-        case .pastel:  return Palette.proExceptFirst(2, Palette.pastels)
+        case .pastel:  return Palette.freeFirst(["ps_blush", "ps_sky"], Palette.pastels)
         case .fade:    return Palette.gradients
-        case .glitter: return Palette.proExceptFirst(2, Palette.glitters)
+        case .glitter: return Palette.freeFirst(["gl_holo", "gl_goldfoil"], Palette.glitters)
         }
     }
 
