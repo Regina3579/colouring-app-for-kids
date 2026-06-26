@@ -213,23 +213,28 @@ private struct ImagePageCard: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ZStack {
+            ZStack(alignment: .topTrailing) {
                 RoundedRectangle(cornerRadius: 24).fill(page.cardTint)
                 Image(page.imageName)
                     .resizable()
                     .scaledToFit()
                     .padding(10)
-                    .opacity(locked ? 0.55 : 1)
                 if locked {
-                    ZStack {
-                        Circle().fill(Candy.purple)
-                            .frame(width: 44, height: 44)
-                            .overlay(Circle().stroke(.white, lineWidth: 3))
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 20, weight: .black))
-                            .foregroundStyle(.white)
+                    // Small corner badge so the picture stays fully visible.
+                    HStack(spacing: 3) {
+                        Image(systemName: "crown.fill").font(.system(size: 10, weight: .black))
+                        Text("PRO").font(.system(size: 11, weight: .black, design: .rounded))
                     }
-                    .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        LinearGradient(colors: [Candy.purple, Candy.pink],
+                                       startPoint: .leading, endPoint: .trailing),
+                        in: Capsule())
+                    .overlay(Capsule().stroke(.white, lineWidth: 1.5))
+                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .padding(8)
                 }
             }
             .frame(height: 150)
