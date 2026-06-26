@@ -180,7 +180,13 @@ enum Categories {
         ("princess_mermaid", "Mermaid Princess", "🧜‍♀️", Color(red: 0.78, green: 0.92, blue: 0.96)),
     ]
 
+    /// These princesses are unlocked only for Pro users.
+    private static let proPrincessIDs: Set<String> = [
+        "princess_butterfly", "princess_mermaid",
+    ]
+
     private static let princessImageItems: [CategoryItem] = princessImageSpecs.map {
-        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3))
+        .image(ImagePage(id: $0.0, title: $0.1, emoji: $0.2, imageName: $0.0, cardTint: $0.3,
+                         isPro: proPrincessIDs.contains($0.0)))
     }
 }
