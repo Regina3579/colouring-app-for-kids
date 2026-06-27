@@ -48,9 +48,10 @@ enum PhotoOutline {
             kCIInputBrightnessKey: 0.0,
         ])
 
-        // Thicken for a bold colouring-book outline.
+        // Despeckle, then thicken for a bold colouring-book outline.
+        let despeckled = lines.applyingFilter("CIMedianFilter")
         let radius = max(1.0, 2.0 * boldness)
-        let thick = lines.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: radius])
+        let thick = despeckled.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: radius])
             .cropped(to: extent)
 
         guard let cg = context.createCGImage(thick, from: extent) else { return nil }
@@ -78,7 +79,7 @@ enum PhotoOutlineAI {
         guard let url = Bundle.main.url(forResource: modelName, withExtension: "mlmodelc"),
               let ml = try? MLModel(contentsOf: url),
               let vnModel = try? VNCoreMLModel(for: ml),
-              let cg = normalized(input).cgImage else { return nil }
+              let cg = simplified(input).cgImage else { return nil }
 
         let lines: CIImage? = await withCheckedContinuation { cont in
             let request = VNCoreMLRequest(model: vnModel) { req, _ in
@@ -98,7 +99,26 @@ enum PhotoOutlineAI {
         return postProcess(lines, like: input)
     }
 
-    /// Cleans the model output into crisp bold black-on-white at the photo's aspect.
+    /// Flattens busy texture/patterns BEFORE the model so it draws clean shapes
+    /// (e.g. a floral dress) instead of tracing every speckle into scribble.
+    private static func simplified(_ image: UIImage) -> UIImage {
+        let up = normalized(image)
+        guard let ci = CIImage(image: up) else { return up }
+        let ctx = CIContext(options: nil)
+        let extent = ci.extent
+        let smooth = ci
+            .applyingFilter("CIMedianFilter")
+            .applyingFilter("CIMedianFilter")
+            .applyingFilter("CINoiseReduction",
+                            parameters: ["inputNoiseLevel": 0.04, "inputSharpness": 0.2])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 2.6])
+            .cropped(to: extent)
+        guard let cg = ctx.createCGImage(smooth, from: extent) else { return up }
+        return UIImage(cgImage: cg)
+    }
+
+    /// Cleans the model output: despeckle stray dots, connect broken dashes,
+    /// then a bold black-on-white outline at the photo's aspect.
     private static func postProcess(_ output: CIImage, like original: UIImage) -> UIImage? {
         let context = CIContext(options: nil)
         var img = output.applyingFilter("CIPhotoEffectNoir")
@@ -107,12 +127,18 @@ enum PhotoOutlineAI {
         }
         let crisp = img.applyingFilter("CIColorControls", parameters: [
             kCIInputSaturationKey: 0.0,
-            kCIInputContrastKey: 1.6,
+            kCIInputContrastKey: 1.5,
             kCIInputBrightnessKey: -0.02,
         ])
-        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.1])
-            .cropped(to: crisp.extent)
-        guard let cg = context.createCGImage(thick, from: thick.extent) else { return nil }
+        let extent = crisp.extent
+        // Remove tiny isolated specks (the dotted noise in sky/sand).
+        let despeckled = crisp.applyingFilter("CIMedianFilter").applyingFilter("CIMedianFilter")
+        // Close small gaps so broken dashes become continuous lines, with a bold weight.
+        let thick = despeckled
+            .applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.6])
+            .applyingFilter("CIMorphologyMaximum", parameters: [kCIInputRadiusKey: 0.8])
+            .cropped(to: extent)
+        guard let cg = context.createCGImage(thick, from: extent) else { return nil }
         return stretch(UIImage(cgImage: cg), toAspectOf: original, maxDim: 1500)
     }
 
