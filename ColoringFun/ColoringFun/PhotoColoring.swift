@@ -103,17 +103,30 @@ enum PhotoOutlineAI {
     /// (e.g. a floral dress) instead of tracing every speckle into scribble.
     private static func simplified(_ image: UIImage) -> UIImage {
         let up = normalized(image)
-        guard let ci = CIImage(image: up) else { return up }
+        // Downscale first: fewer pixels => only big shapes survive, not texture.
+        let maxDim: CGFloat = 680
+        let m = max(up.size.width, up.size.height)
+        let f = m > maxDim ? maxDim / m : 1
+        let target = CGSize(width: max(1, up.size.width * f), height: max(1, up.size.height * f))
+        let fmt = UIGraphicsImageRendererFormat.default(); fmt.scale = 1; fmt.opaque = true
+        let small = UIGraphicsImageRenderer(size: target, format: fmt).image { _ in
+            up.draw(in: CGRect(origin: .zero, size: target))
+        }
+        guard let ci = CIImage(image: small) else { return small }
         let ctx = CIContext(options: nil)
         let extent = ci.extent
-        let smooth = ci
+        // Cartoonise: smooth away fine detail, then posterize into a few flat
+        // tones so patterns (floral dress, sand) become simple shapes. The model
+        // then draws clean outlines instead of tracing every speckle.
+        let cartoon = ci
             .applyingFilter("CIMedianFilter")
             .applyingFilter("CIMedianFilter")
             .applyingFilter("CINoiseReduction",
-                            parameters: ["inputNoiseLevel": 0.04, "inputSharpness": 0.2])
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 2.6])
+                            parameters: ["inputNoiseLevel": 0.06, "inputSharpness": 0.1])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 2.0])
             .cropped(to: extent)
-        guard let cg = ctx.createCGImage(smooth, from: extent) else { return up }
+            .applyingFilter("CIColorPosterize", parameters: ["inputLevels": 6.0])
+        guard let cg = ctx.createCGImage(cartoon, from: extent) else { return small }
         return UIImage(cgImage: cg)
     }
 
