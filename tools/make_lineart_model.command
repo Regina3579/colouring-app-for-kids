@@ -46,7 +46,7 @@ class Wrap(torch.nn.Module):
         super().__init__(); self.g = g
     def forward(self, x):
         y = self.g(x).clamp(0, 1)
-        return y.repeat(1, 3, 1, 1)   # 1ch line image -> 3ch so it exports as an image
+        return y.repeat(1, 3, 1, 1) * 255.0   # 1ch [0,1] -> 3ch 0..255 image output
 
 ex = torch.rand(1, 3, size, size)
 tr = torch.jit.trace(Wrap(net).eval(), ex)

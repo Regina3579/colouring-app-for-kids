@@ -79,9 +79,8 @@ def main() -> int:
             self.g = g
 
         def forward(self, x):
-            y = self.g(x)              # (1,1,H,W) line image in [0,1]
-            y = y.clamp(0, 1)
-            return y.repeat(1, 3, 1, 1)  # -> (1,3,H,W) so it exports as an image
+            y = self.g(x).clamp(0, 1)            # (1,1,H,W) line image in [0,1]
+            return y.repeat(1, 3, 1, 1) * 255.0  # -> (1,3,H,W) in 0..255 for an image output
 
     wrapped = Wrapper(net).eval()
     example = torch.rand(1, 3, args.size, args.size)

@@ -31,32 +31,26 @@ enum PhotoOutline {
         let context = CIContext(options: nil)
         let extent = ci.extent
 
-        // 1) Smooth away fine texture/noise so only the real shapes survive —
-        //    this is what makes the lines clean instead of a scratchy sketch.
+        // Light denoise so we trace real shapes, not film grain.
         let smoothed = ci
             .applyingFilter("CIMedianFilter")
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 2.2])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1.2])
             .cropped(to: extent)
-
-        // 2) Grayscale, then posterize to flatten gradients into a few flat
-        //    tones — gives a cartoon look so edges land only on real outlines.
         let mono = smoothed.applyingFilter("CIPhotoEffectNoir")
-        let flat = mono.applyingFilter("CIColorPosterize", parameters: ["inputLevels": 5.0])
 
-        // 3) Detect edges and invert to black lines on white.
-        let edges = flat.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 1.6])
+        // Edge detection, inverted to black lines on white. Moderate contrast so
+        // faint edges stay visible instead of being thresholded away to blank.
+        let edges = mono.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 3.0])
         let inverted = edges.applyingFilter("CIColorInvert")
-
-        // 4) Hard threshold to crisp pure black/white.
-        let crisp = inverted.applyingFilter("CIColorControls", parameters: [
+        let lines = inverted.applyingFilter("CIColorControls", parameters: [
             kCIInputSaturationKey: 0.0,
-            kCIInputContrastKey: 14.0,
-            kCIInputBrightnessKey: 0.12,
+            kCIInputContrastKey: 2.4,
+            kCIInputBrightnessKey: 0.0,
         ])
 
-        // 5) Thicken & connect the lines for a nice bold colouring-book outline.
-        let radius = max(1.0, 2.4 * boldness)
-        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: radius])
+        // Thicken for a bold colouring-book outline.
+        let radius = max(1.0, 2.0 * boldness)
+        let thick = lines.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: radius])
             .cropped(to: extent)
 
         guard let cg = context.createCGImage(thick, from: extent) else { return nil }
@@ -113,10 +107,10 @@ enum PhotoOutlineAI {
         }
         let crisp = img.applyingFilter("CIColorControls", parameters: [
             kCIInputSaturationKey: 0.0,
-            kCIInputContrastKey: 9.0,
-            kCIInputBrightnessKey: 0.05,
+            kCIInputContrastKey: 1.6,
+            kCIInputBrightnessKey: -0.02,
         ])
-        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.6])
+        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.1])
             .cropped(to: crisp.extent)
         guard let cg = context.createCGImage(thick, from: thick.extent) else { return nil }
         return stretch(UIImage(cgImage: cg), toAspectOf: original, maxDim: 1500)
@@ -156,10 +150,33 @@ enum PhotoOutlineAI {
 /// otherwise the built-in image-processing filter.
 enum PhotoOutlineMaker {
     static func make(from image: UIImage) async -> UIImage? {
-        if PhotoOutlineAI.isAvailable, let ai = await PhotoOutlineAI.make(from: image) {
+        // Prefer the AI model, but only if it produced a usable outline (not a
+        // blank/black page). Otherwise always fall back to the filter so the
+        // user never sees an empty canvas.
+        if PhotoOutlineAI.isAvailable,
+           let ai = await PhotoOutlineAI.make(from: image),
+           !isBlank(ai) {
             return ai
         }
-        return PhotoOutline.make(from: image)
+        if let filtered = PhotoOutline.make(from: image), !isBlank(filtered) {
+            return filtered
+        }
+        // Last-ditch: a softer, very forgiving pass.
+        return PhotoOutline.make(from: image, boldness: 0.7)
+    }
+
+    /// True if the outline is essentially all-white or all-black (useless).
+    static func isBlank(_ image: UIImage) -> Bool {
+        guard let ci = CIImage(image: image) else { return true }
+        let ctx = CIContext(options: nil)
+        let avg = ci.applyingFilter("CIAreaAverage",
+                                    parameters: [kCIInputExtentKey: CIVector(cgRect: ci.extent)])
+        var px = [UInt8](repeating: 0, count: 4)
+        ctx.render(avg, toBitmap: &px, rowBytes: 4,
+                   bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                   format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+        let lum = (0.299 * CGFloat(px[0]) + 0.587 * CGFloat(px[1]) + 0.114 * CGFloat(px[2])) / 255.0
+        return lum > 0.992 || lum < 0.04
     }
 }
 
