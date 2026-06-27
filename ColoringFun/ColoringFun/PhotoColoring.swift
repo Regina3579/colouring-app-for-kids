@@ -1,6 +1,8 @@
 import SwiftUI
 import PhotosUI
 import CoreImage
+import CoreML
+import Vision
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -59,6 +61,105 @@ enum PhotoOutline {
 
         guard let cg = context.createCGImage(thick, from: extent) else { return nil }
         return UIImage(cgImage: cg)
+    }
+}
+
+// MARK: - On-device AI line-art model (used automatically when bundled)
+
+/// Runs a bundled Core ML image-to-image "line art" model to produce a clean,
+/// bold outline — the same kind of result as the AI photo-to-colouring apps.
+///
+/// To enable AI quality, add a Core ML model named `PhotoLineArt` (an
+/// `.mlpackage` or `.mlmodel`) to the app target. A good choice is the
+/// "Informative Drawings" line-extraction model (image in → grayscale line
+/// image out). Until then, the app falls back to `PhotoOutline` automatically.
+enum PhotoOutlineAI {
+    static let modelName = "PhotoLineArt"
+
+    static var isAvailable: Bool {
+        Bundle.main.url(forResource: modelName, withExtension: "mlmodelc") != nil
+    }
+
+    static func make(from input: UIImage) async -> UIImage? {
+        guard let url = Bundle.main.url(forResource: modelName, withExtension: "mlmodelc"),
+              let ml = try? MLModel(contentsOf: url),
+              let vnModel = try? VNCoreMLModel(for: ml),
+              let cg = normalized(input).cgImage else { return nil }
+
+        let lines: CIImage? = await withCheckedContinuation { cont in
+            let request = VNCoreMLRequest(model: vnModel) { req, _ in
+                if let obs = req.results?.first as? VNPixelBufferObservation {
+                    cont.resume(returning: CIImage(cvPixelBuffer: obs.pixelBuffer))
+                } else {
+                    cont.resume(returning: nil)
+                }
+            }
+            // Stretch to the model's square input; we un-stretch the result
+            // afterwards, which avoids padding bars turning into stray lines.
+            request.imageCropAndScaleOption = .scaleFill
+            let handler = VNImageRequestHandler(cgImage: cg, options: [:])
+            do { try handler.perform([request]) } catch { cont.resume(returning: nil) }
+        }
+        guard let lines else { return nil }
+        return postProcess(lines, like: input)
+    }
+
+    /// Cleans the model output into crisp bold black-on-white at the photo's aspect.
+    private static func postProcess(_ output: CIImage, like original: UIImage) -> UIImage? {
+        let context = CIContext(options: nil)
+        var img = output.applyingFilter("CIPhotoEffectNoir")
+        if averageLuminance(img, context) < 0.5 {
+            img = img.applyingFilter("CIColorInvert")   // ensure white background
+        }
+        let crisp = img.applyingFilter("CIColorControls", parameters: [
+            kCIInputSaturationKey: 0.0,
+            kCIInputContrastKey: 9.0,
+            kCIInputBrightnessKey: 0.05,
+        ])
+        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.6])
+            .cropped(to: crisp.extent)
+        guard let cg = context.createCGImage(thick, from: thick.extent) else { return nil }
+        return stretch(UIImage(cgImage: cg), toAspectOf: original, maxDim: 1500)
+    }
+
+    private static func averageLuminance(_ image: CIImage, _ context: CIContext) -> CGFloat {
+        let avg = image.applyingFilter("CIAreaAverage",
+                                       parameters: [kCIInputExtentKey: CIVector(cgRect: image.extent)])
+        var px = [UInt8](repeating: 0, count: 4)
+        context.render(avg, toBitmap: &px, rowBytes: 4,
+                       bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                       format: .RGBA8, colorSpace: CGColorSpaceCreateDeviceRGB())
+        return (0.299 * CGFloat(px[0]) + 0.587 * CGFloat(px[1]) + 0.114 * CGFloat(px[2])) / 255.0
+    }
+
+    private static func normalized(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        let fmt = UIGraphicsImageRendererFormat.default(); fmt.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: fmt).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
+    }
+
+    private static func stretch(_ image: UIImage, toAspectOf original: UIImage, maxDim: CGFloat) -> UIImage {
+        let m = max(original.size.width, original.size.height)
+        let f = m > maxDim ? maxDim / m : 1
+        let target = CGSize(width: max(1, original.size.width * f), height: max(1, original.size.height * f))
+        let fmt = UIGraphicsImageRendererFormat.default(); fmt.scale = 1; fmt.opaque = true
+        return UIGraphicsImageRenderer(size: target, format: fmt).image { _ in
+            UIColor.white.setFill(); UIRectFill(CGRect(origin: .zero, size: target))
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+    }
+}
+
+/// Produces the colouring outline: uses the on-device AI model when bundled,
+/// otherwise the built-in image-processing filter.
+enum PhotoOutlineMaker {
+    static func make(from image: UIImage) async -> UIImage? {
+        if PhotoOutlineAI.isAvailable, let ai = await PhotoOutlineAI.make(from: image) {
+            return ai
+        }
+        return PhotoOutline.make(from: image)
     }
 }
 
@@ -146,10 +247,10 @@ struct PhotoColoringScreen: View {
         processing = true; failed = false
         Task {
             let data = try? await item.loadTransferable(type: Data.self)
-            let result: UIImage? = {
-                guard let data, let ui = UIImage(data: data) else { return nil }
-                return PhotoOutline.make(from: ui)
-            }()
+            var result: UIImage?
+            if let data, let ui = UIImage(data: data) {
+                result = await PhotoOutlineMaker.make(from: ui)
+            }
             await MainActor.run {
                 processing = false
                 if let result { outline = result } else { failed = true }
