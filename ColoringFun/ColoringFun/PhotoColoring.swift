@@ -8,9 +8,10 @@ import UIKit
 // MARK: - Turn a photo into a black-outline colouring page
 
 enum PhotoOutline {
-    /// Converts an uploaded photo into a clean black-on-white outline (like a
-    /// colouring book page) using on-device edge detection.
-    static func make(from input: UIImage, maxDim: CGFloat = 1400) -> UIImage? {
+    /// Converts an uploaded photo into a clean, bold black-on-white outline
+    /// (like a colouring book page) using on-device image processing.
+    /// `boldness` ~0.6 (fine) … ~1.6 (very bold).
+    static func make(from input: UIImage, maxDim: CGFloat = 1500, boldness: CGFloat = 1.1) -> UIImage? {
         // Normalise orientation + size in a single redraw onto a white page.
         let m = max(input.size.width, input.size.height)
         let factor = m > maxDim ? maxDim / m : 1
@@ -28,17 +29,32 @@ enum PhotoOutline {
         let context = CIContext(options: nil)
         let extent = ci.extent
 
-        let blurred = ci.applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1.4])
+        // 1) Smooth away fine texture/noise so only the real shapes survive —
+        //    this is what makes the lines clean instead of a scratchy sketch.
+        let smoothed = ci
+            .applyingFilter("CIMedianFilter")
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 2.2])
             .cropped(to: extent)
-        let mono = blurred.applyingFilter("CIPhotoEffectNoir")
-        let edges = mono.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 2.5])
+
+        // 2) Grayscale, then posterize to flatten gradients into a few flat
+        //    tones — gives a cartoon look so edges land only on real outlines.
+        let mono = smoothed.applyingFilter("CIPhotoEffectNoir")
+        let flat = mono.applyingFilter("CIColorPosterize", parameters: ["inputLevels": 5.0])
+
+        // 3) Detect edges and invert to black lines on white.
+        let edges = flat.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 1.6])
         let inverted = edges.applyingFilter("CIColorInvert")
+
+        // 4) Hard threshold to crisp pure black/white.
         let crisp = inverted.applyingFilter("CIColorControls", parameters: [
             kCIInputSaturationKey: 0.0,
-            kCIInputContrastKey: 6.0,
-            kCIInputBrightnessKey: 0.06,
+            kCIInputContrastKey: 14.0,
+            kCIInputBrightnessKey: 0.12,
         ])
-        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: 1.2])
+
+        // 5) Thicken & connect the lines for a nice bold colouring-book outline.
+        let radius = max(1.0, 2.4 * boldness)
+        let thick = crisp.applyingFilter("CIMorphologyMinimum", parameters: [kCIInputRadiusKey: radius])
             .cropped(to: extent)
 
         guard let cg = context.createCGImage(thick, from: extent) else { return nil }
