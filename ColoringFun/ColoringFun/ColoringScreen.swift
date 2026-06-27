@@ -246,7 +246,7 @@ struct ToolBar: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(Tool.allCases) { t in
+                ForEach(Tool.allCases.filter { $0 != .glitter }) { t in
                     let locked = t.isPro && !pro.isUnlocked
                     Button {
                         if locked { showPro = true } else { tool = t }
