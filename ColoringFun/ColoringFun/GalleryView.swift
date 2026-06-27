@@ -19,6 +19,10 @@ struct GalleryView: View {
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
 
+                photoColoringSection
+                    .padding(.horizontal, 18)
+                    .padding(.top, 12)
+
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
                         NavigationLink {
@@ -60,33 +64,62 @@ struct GalleryView: View {
             NavigationLink {
                 CreateDrawingView()
             } label: {
-                CreateOwnCard(locked: false)
+                ProBannerCard(emoji: "🎨", title: "Create Your Own Drawing",
+                              subtitle: "Draw with ✏️ pen, 🖌️ brush & 🖍️ crayon",
+                              colors: [Candy.purple, Candy.pink], locked: false)
             }
             .buttonStyle(.plain)
         } else {
             Button { showPro = true } label: {
-                CreateOwnCard(locked: true)
+                ProBannerCard(emoji: "🎨", title: "Create Your Own Drawing",
+                              subtitle: "Draw with ✏️ pen, 🖌️ brush & 🖍️ crayon",
+                              colors: [Candy.purple, Candy.pink], locked: true)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// Pro-only "Color My Photo": pick a photo, turn it into an outline to colour.
+    @ViewBuilder private var photoColoringSection: some View {
+        if pro.isUnlocked {
+            NavigationLink {
+                PhotoColoringScreen()
+            } label: {
+                ProBannerCard(emoji: "📷", title: "Color My Photo",
+                              subtitle: "Turn your photo into an outline to colour",
+                              colors: [Candy.blue, Candy.teal], locked: false)
+            }
+            .buttonStyle(.plain)
+        } else {
+            Button { showPro = true } label: {
+                ProBannerCard(emoji: "📷", title: "Color My Photo",
+                              subtitle: "Turn your photo into an outline to colour",
+                              colors: [Candy.blue, Candy.teal], locked: true)
             }
             .buttonStyle(.plain)
         }
     }
 }
 
-/// The colourful banner that launches the blank drawing canvas.
-private struct CreateOwnCard: View {
+/// A colourful Pro banner that launches a feature (or the Pro page if locked).
+private struct ProBannerCard: View {
+    let emoji: String
+    let title: String
+    let subtitle: String
+    let colors: [Color]
     let locked: Bool
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle().fill(.white.opacity(0.25)).frame(width: 60, height: 60)
-                Text("🎨").font(.system(size: 32))
+                Text(emoji).font(.system(size: 32))
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Create Your Own Drawing")
+                Text(title)
                     .font(.system(size: 19, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Draw with ✏️ pen, 🖌️ brush & 🖍️ crayon")
+                Text(subtitle)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.9))
             }
@@ -98,11 +131,10 @@ private struct CreateOwnCard: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
         .background(
-            LinearGradient(colors: [Candy.purple, Candy.pink],
-                           startPoint: .leading, endPoint: .trailing),
+            LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing),
             in: RoundedRectangle(cornerRadius: 26))
         .overlay(RoundedRectangle(cornerRadius: 26).stroke(.white, lineWidth: 4))
-        .shadow(color: Candy.purple.opacity(0.35), radius: 6, y: 3)
+        .shadow(color: (colors.first ?? .clear).opacity(0.35), radius: 6, y: 3)
     }
 }
 

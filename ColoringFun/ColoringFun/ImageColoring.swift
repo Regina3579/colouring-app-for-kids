@@ -56,8 +56,13 @@ final class FloodFillModel: ObservableObject {
         rebuild()
     }
 
-    init(imageName: String, maxDim: Int = 640, initialOps: [Op] = []) {
-        let img = UIImage(named: imageName) ?? FloodFillModel.blank()
+    convenience init(imageName: String, maxDim: Int = 640, initialOps: [Op] = []) {
+        self.init(image: UIImage(named: imageName) ?? FloodFillModel.blank(),
+                  maxDim: maxDim, initialOps: initialOps)
+    }
+
+    init(image: UIImage, maxDim: Int = 640, initialOps: [Op] = []) {
+        let img = image
         displayImage = img
         aspect = img.size.height > 0 ? img.size.width / img.size.height : 1
 
