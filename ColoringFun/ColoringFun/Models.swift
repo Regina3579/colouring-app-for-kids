@@ -24,7 +24,7 @@ enum Tool: String, CaseIterable, Identifiable {
         switch self {
         case .bucket:  return "Paint"
         case .crayon:  return "Crayon"
-        case .glitter: return "Glitter"
+        case .glitter: return "Sparkle"
         case .eraser:  return "Eraser"
         }
     }
