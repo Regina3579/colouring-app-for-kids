@@ -96,14 +96,17 @@ struct VectorSparkleLayer: View {
                     let b = p.boundingRect
                     guard b.width > 0, b.height > 0 else { continue }
                     let colors = glitterStarColors(f.paint)
+                    let big = f.paint.bigSparkle
                     var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(region.id)) &* 2654435761 &+ 7)
-                    let count = max(6, min(70, Int(b.width * b.height / 5000)))
+                    let count = big ? max(6, min(50, Int(b.width * b.height / 7000)))
+                                    : max(6, min(70, Int(b.width * b.height / 5000)))
+                    let sizeMul: CGFloat = big ? 1.9 : 1.0
                     ctx.drawLayer { layer in
                         layer.clip(to: p)
                         for _ in 0..<count {
                             let px = b.minX + CGFloat(rng.unit()) * b.width
                             let py = b.minY + CGFloat(rng.unit()) * b.height
-                            let s = (3.0 + CGFloat(rng.unit()) * 4.5) * layout.scale
+                            let s = (3.0 + CGFloat(rng.unit()) * 4.5) * layout.scale * sizeMul
                             let phase = rng.unit() * 6.28
                             let col = colors[Int(rng.unit() * Double(colors.count)) % colors.count]
                             drawTwinkle(&layer, at: CGPoint(x: px, y: py), color: col,

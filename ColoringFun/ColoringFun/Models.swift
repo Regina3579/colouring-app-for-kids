@@ -87,6 +87,11 @@ enum Paint: Equatable {
         if case .fancy(let s) = self { return s }
         return nil
     }
+    /// True for the louder "Sparkle" tab styles — bigger on-canvas sparkles.
+    var bigSparkle: Bool {
+        if case .fancy(let s) = self { return s.id.hasPrefix("spk_") }
+        return false
+    }
 }
 
 /// A premium glitter: a pearlescent/metallic base plus sparkle colours.

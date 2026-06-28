@@ -258,8 +258,10 @@ final class FloodFillModel: ObservableObject {
     /// Scatter a handful of animated twinkle anchors across the glittered region.
     private func addAnchors(_ region: [Int], paint paintStyle: Paint) {
         let colors = glitterStarColors(paintStyle)
+        let big = paintStyle.bigSparkle
         var rng = SystemRandomNumberGenerator()
-        let count = max(5, min(70, region.count / 5500))
+        let count = big ? max(4, min(55, region.count / 7500))
+                        : max(5, min(70, region.count / 5500))
         for _ in 0..<count {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
             let col = colors[Int.random(in: 0..<colors.count, using: &rng)]
@@ -267,7 +269,8 @@ final class FloodFillModel: ObservableObject {
                 x: CGFloat(idx % w) / CGFloat(w),
                 y: CGFloat(idx / w) / CGFloat(h),
                 color: col,
-                size: CGFloat.random(in: 0.006...0.013, using: &rng),
+                size: big ? CGFloat.random(in: 0.013...0.024, using: &rng)
+                          : CGFloat.random(in: 0.006...0.013, using: &rng),
                 phase: Double.random(in: 0..<6.28, using: &rng)))
         }
     }
