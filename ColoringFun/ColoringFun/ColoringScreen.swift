@@ -349,6 +349,17 @@ struct ToolBar: View {
 
 // MARK: - Colour swatches
 
+/// The face of one swatch: the new glitter texture only on the Sparkle tab,
+/// the classic look everywhere else (Glitter included).
+@ViewBuilder
+func paletteSwatchFace(_ swatch: Swatch, sparkleTab: Bool) -> some View {
+    if sparkleTab, case .fancy(let style) = swatch.paint {
+        GlitterSwatch(base: style.base, sparkle: style.sparkle, seed: SwatchShape.fnv(style.id))
+    } else {
+        SwatchShape(paint: swatch.paint)
+    }
+}
+
 struct PaletteBar: View {
     @Binding var selectedPaint: Paint
     @Binding var selectedSwatchID: String
@@ -373,7 +384,7 @@ struct PaletteBar: View {
                                 selectedSwatchID = swatch.id
                             }
                         } label: {
-                            SwatchShape(paint: swatch.paint)
+                            paletteSwatchFace(swatch, sparkleTab: category == .sparkle)
                                 .frame(width: 46, height: 46)
                                 .overlay(Circle().stroke(.white, lineWidth: 4))
                                 .overlay(
@@ -467,11 +478,24 @@ struct SwatchShape: View {
             Circle().fill(LinearGradient(colors: colors,
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
         case .glitter(let color):
-            GlitterSwatch(base: [color], sparkle: [.white, .white, color],
-                          seed: SwatchShape.seed(forColor: color))
+            ZStack {
+                Circle().fill(color)
+                Circle().fill(RadialGradient(colors: [.white.opacity(0.55), .clear],
+                                             center: .topLeading, startRadius: 1, endRadius: 34))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+            }
         case .fancy(let style):
-            GlitterSwatch(base: style.base, sparkle: style.sparkle,
-                          seed: SwatchShape.fnv(style.id))
+            ZStack {
+                Circle().fill(AngularGradient(colors: style.sparkle + [style.sparkle[0]],
+                                              center: .center))
+                Circle().fill(RadialGradient(colors: [.white.opacity(0.65), .clear],
+                                             center: .center, startRadius: 1, endRadius: 26))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white)
+            }
         }
     }
 
@@ -508,21 +532,23 @@ struct GlitterSwatch: View {
 
             var rng = SeededGenerator(seed: seed == 0 ? 1 : seed)
             let cols = sparkle.isEmpty ? [Color.white] : sparkle
-            let grains = max(40, Int(size.width * size.height / 9))
+            // Glitter grains — bigger and bolder.
+            let grains = max(36, Int(size.width * size.height / 11))
             for _ in 0..<grains {
                 let x = CGFloat(rng.unit()) * size.width
                 let y = CGFloat(rng.unit()) * size.height
-                let r = 0.5 + CGFloat(rng.unit()) * 1.5
+                let r = 0.7 + CGFloat(rng.unit()) * 2.2
                 let c = cols[Int(rng.unit() * Double(cols.count)) % cols.count]
                 ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
-                         with: .color(c.opacity(0.45 + rng.unit() * 0.55)))
+                         with: .color(c.opacity(0.50 + rng.unit() * 0.50)))
             }
-            for _ in 0..<3 {
+            // Big, bright, well-defined star sparkles (soft glow + star).
+            for _ in 0..<6 {
                 let x = CGFloat(rng.unit()) * size.width
                 let y = CGFloat(rng.unit()) * size.height
-                let s = 2.2 + CGFloat(rng.unit()) * 2.2
-                ctx.fill(sparkleStarPath(at: CGPoint(x: x, y: y), size: s),
-                         with: .color(.white.opacity(0.9)))
+                let s = 4.0 + CGFloat(rng.unit()) * 4.0
+                let c = cols[Int(rng.unit() * Double(cols.count)) % cols.count]
+                drawTwinkle(&ctx, at: CGPoint(x: x, y: y), color: c, size: s, level: 0.9)
             }
             // Glossy highlight.
             ctx.fill(circle, with: .radialGradient(
