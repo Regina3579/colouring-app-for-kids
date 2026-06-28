@@ -131,6 +131,75 @@ enum Glitters {
         base: [c(0.16, 0.11, 0.34), c(0.34, 0.15, 0.50), c(0.20, 0.18, 0.55), c(0.45, 0.14, 0.44)],
         sparkle: [.white, c(0.55, 0.85, 1.00), c(1.00, 0.55, 0.95), c(1.00, 0.90, 0.55), c(0.78, 0.68, 1.00)],
         intensity: 2.1)
+
+    // MARK: New "Sparkle" tab styles
+
+    static let mermaid = GlitterStyle(
+        id: "spk_mermaid",
+        base: [c(0.40, 0.92, 0.86), c(0.35, 0.72, 0.95), c(0.55, 0.55, 0.95), c(0.50, 0.88, 0.90)],
+        sparkle: [.white, c(0.30, 1.00, 0.95), c(0.55, 0.82, 1.00), c(0.82, 0.70, 1.00)],
+        intensity: 2.1)
+
+    static let rainbowSpk = GlitterStyle(
+        id: "spk_rainbow",
+        base: [c(1.00, 0.45, 0.55), c(1.00, 0.72, 0.35), c(1.00, 0.92, 0.45),
+               c(0.50, 0.86, 0.55), c(0.40, 0.66, 1.00), c(0.72, 0.50, 0.95)],
+        sparkle: [.white, c(1.00, 0.40, 0.70), c(1.00, 0.90, 0.40), c(0.40, 0.90, 0.60), c(0.50, 0.70, 1.00)],
+        intensity: 2.2)
+
+    static let sunsetSpk = GlitterStyle(
+        id: "spk_sunset",
+        base: [c(1.00, 0.86, 0.45), c(1.00, 0.55, 0.35), c(0.95, 0.35, 0.50), c(0.70, 0.30, 0.55)],
+        sparkle: [.white, c(1.00, 0.85, 0.50), c(1.00, 0.60, 0.50), c(1.00, 0.45, 0.60)],
+        intensity: 2.0)
+
+    static let aurora = GlitterStyle(
+        id: "spk_aurora",
+        base: [c(0.35, 0.92, 0.70), c(0.40, 0.70, 0.95), c(0.70, 0.50, 0.95), c(0.95, 0.55, 0.80)],
+        sparkle: [.white, c(0.50, 1.00, 0.80), c(0.60, 0.70, 1.00), c(1.00, 0.60, 0.85)],
+        intensity: 2.2)
+
+    static let cottonCandy = GlitterStyle(
+        id: "spk_cotton",
+        base: [c(1.00, 0.80, 0.92), c(0.86, 0.80, 1.00), c(0.80, 0.92, 1.00)],
+        sparkle: [.white, c(1.00, 0.75, 0.92), c(0.80, 0.78, 1.00), c(0.70, 0.92, 1.00)],
+        intensity: 1.9)
+
+    static let oceanSpk = GlitterStyle(
+        id: "spk_ocean",
+        base: [c(0.55, 0.92, 0.92), c(0.30, 0.70, 0.92), c(0.20, 0.45, 0.80)],
+        sparkle: [.white, c(0.50, 0.95, 1.00), c(0.40, 0.75, 1.00)],
+        intensity: 1.9)
+
+    static let bubblegum = GlitterStyle(
+        id: "spk_bubblegum",
+        base: [c(1.00, 0.55, 0.80), c(1.00, 0.40, 0.65), c(0.85, 0.45, 0.90)],
+        sparkle: [.white, c(1.00, 0.60, 0.85), c(0.90, 0.50, 0.95)],
+        intensity: 2.0)
+
+    static let lavaSpk = GlitterStyle(
+        id: "spk_lava",
+        base: [c(1.00, 0.85, 0.30), c(1.00, 0.50, 0.15), c(0.85, 0.20, 0.20)],
+        sparkle: [.white, c(1.00, 0.90, 0.40), c(1.00, 0.60, 0.25)],
+        intensity: 2.0)
+
+    static let emerald = GlitterStyle(
+        id: "spk_emerald",
+        base: [c(0.55, 0.95, 0.65), c(0.25, 0.80, 0.55), c(0.15, 0.55, 0.45)],
+        sparkle: [.white, c(0.60, 1.00, 0.70), c(0.40, 0.90, 0.60)],
+        intensity: 1.9)
+
+    static let peachy = GlitterStyle(
+        id: "spk_peach",
+        base: [c(1.00, 0.88, 0.72), c(1.00, 0.72, 0.60), c(1.00, 0.60, 0.62)],
+        sparkle: [.white, c(1.00, 0.85, 0.65), c(1.00, 0.70, 0.65)],
+        intensity: 1.8)
+
+    /// All "Sparkle" tab styles in display order.
+    static let sparkleStyles: [GlitterStyle] = [
+        mermaid, rainbowSpk, sunsetSpk, aurora, cottonCandy,
+        oceanSpk, bubblegum, lavaSpk, emerald, peachy,
+    ]
 }
 
 // MARK: - What a child painted into one region
@@ -328,6 +397,20 @@ enum Palette {
     static let swatches: [Swatch] = solids + pastels + gradients
         + glitters.map { Swatch(id: $0.id, paint: $0.paint, name: $0.name, isPro: true) }
 
+    /// New "Sparkle" tab — extra glittery styles (separate from Glitter).
+    static let sparkles: [Swatch] = [
+        Swatch(id: "spk_mermaid",   paint: .fancy(Glitters.mermaid),     name: "Mermaid"),
+        Swatch(id: "spk_rainbow",   paint: .fancy(Glitters.rainbowSpk),  name: "Rainbow"),
+        Swatch(id: "spk_sunset",    paint: .fancy(Glitters.sunsetSpk),   name: "Sunset"),
+        Swatch(id: "spk_aurora",    paint: .fancy(Glitters.aurora),      name: "Aurora"),
+        Swatch(id: "spk_cotton",    paint: .fancy(Glitters.cottonCandy), name: "Cotton Candy"),
+        Swatch(id: "spk_ocean",     paint: .fancy(Glitters.oceanSpk),    name: "Ocean"),
+        Swatch(id: "spk_bubblegum", paint: .fancy(Glitters.bubblegum),   name: "Bubblegum"),
+        Swatch(id: "spk_lava",      paint: .fancy(Glitters.lavaSpk),     name: "Lava"),
+        Swatch(id: "spk_emerald",   paint: .fancy(Glitters.emerald),     name: "Emerald"),
+        Swatch(id: "spk_peach",     paint: .fancy(Glitters.peachy),      name: "Peachy"),
+    ]
+
     static var defaultPaint: Paint { solids[1].paint }
     static var defaultID: String { solids[1].id }
 
@@ -348,7 +431,7 @@ enum Palette {
 /// Splits the long colour list into tidy tabs so kids tap a group
 /// (e.g. "Pastel") to reveal just those colours.
 enum PaletteCategory: String, CaseIterable, Identifiable {
-    case colours, pastel, fade, glitter
+    case colours, pastel, fade, glitter, sparkle
 
     var id: String { rawValue }
 
@@ -358,6 +441,7 @@ enum PaletteCategory: String, CaseIterable, Identifiable {
         case .pastel:  return "Pastel"
         case .fade:    return "Fade"
         case .glitter: return "Glitter"
+        case .sparkle: return "Sparkle"
         }
     }
 
@@ -367,6 +451,7 @@ enum PaletteCategory: String, CaseIterable, Identifiable {
         case .pastel:  return "🌸"
         case .fade:    return "🌈"
         case .glitter: return "✨"
+        case .sparkle: return "🪄"
         }
     }
 
@@ -377,11 +462,12 @@ enum PaletteCategory: String, CaseIterable, Identifiable {
         case .pastel:  return Palette.freeFirst(["ps_blush", "ps_sky"], Palette.pastels)
         case .fade:    return Palette.gradients
         case .glitter: return Palette.freeFirst(["gl_holo", "gl_goldfoil"], Palette.glitters)
+        case .sparkle: return Palette.freeFirst(["spk_mermaid", "spk_rainbow"], Palette.sparkles)
         }
     }
 
     /// True if the whole group is Pro-only (shows a crown on the tab).
-    var isPro: Bool { self == .pastel || self == .glitter }
+    var isPro: Bool { self == .pastel || self == .glitter || self == .sparkle }
 }
 
 // MARK: - Deterministic randomness so glitter does not flicker on redraw

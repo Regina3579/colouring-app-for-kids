@@ -23,7 +23,8 @@ extension Color {
 
 extension Glitters {
     static func byID(_ id: String) -> GlitterStyle? {
-        [holographic, gold, silver, unicorn, roseGold, galaxy].first { $0.id == id }
+        ([holographic, gold, silver, unicorn, roseGold, galaxy] + sparkleStyles)
+            .first { $0.id == id }
     }
 }
 
