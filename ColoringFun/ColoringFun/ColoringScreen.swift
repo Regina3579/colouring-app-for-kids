@@ -454,7 +454,8 @@ struct PaletteBar: View {
     }
 }
 
-/// A round swatch showing either a solid colour or a gradient blend.
+/// A round swatch showing either a solid colour, a gradient blend, or a real
+/// glitter texture (grains + sparkles) for glitter/sparkle paints.
 struct SwatchShape: View {
     let paint: Paint
 
@@ -466,24 +467,68 @@ struct SwatchShape: View {
             Circle().fill(LinearGradient(colors: colors,
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
         case .glitter(let color):
-            ZStack {
-                Circle().fill(color)
-                Circle().fill(RadialGradient(colors: [.white.opacity(0.55), .clear],
-                                             center: .topLeading, startRadius: 1, endRadius: 34))
-                Image(systemName: "sparkles")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
-            }
+            GlitterSwatch(base: [color], sparkle: [.white, .white, color],
+                          seed: SwatchShape.seed(forColor: color))
         case .fancy(let style):
-            ZStack {
-                Circle().fill(AngularGradient(colors: style.sparkle + [style.sparkle[0]],
-                                              center: .center))
-                Circle().fill(RadialGradient(colors: [.white.opacity(0.65), .clear],
-                                             center: .center, startRadius: 1, endRadius: 26))
-                Image(systemName: "sparkles")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.white)
+            GlitterSwatch(base: style.base, sparkle: style.sparkle,
+                          seed: SwatchShape.fnv(style.id))
+        }
+    }
+
+    /// Deterministic hash so the glitter grains stay stable (no flicker).
+    static func fnv(_ s: String) -> UInt64 {
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in s.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
+        return h
+    }
+    static func seed(forColor c: Color) -> UInt64 {
+        fnv(c.rgbaComponents.map { String(Int($0 * 255)) }.joined(separator: ","))
+    }
+}
+
+/// A glittery swatch: base tint scattered with sparkle grains and a few stars.
+struct GlitterSwatch: View {
+    let base: [Color]
+    let sparkle: [Color]
+    let seed: UInt64
+
+    var body: some View {
+        Canvas { ctx, size in
+            let rect = CGRect(origin: .zero, size: size)
+            let circle = Path(ellipseIn: rect)
+            ctx.clip(to: circle)
+
+            if base.count <= 1 {
+                ctx.fill(circle, with: .color(base.first ?? .gray))
+            } else {
+                ctx.fill(circle, with: .linearGradient(Gradient(colors: base),
+                                                       startPoint: .zero,
+                                                       endPoint: CGPoint(x: size.width, y: size.height)))
             }
+
+            var rng = SeededGenerator(seed: seed == 0 ? 1 : seed)
+            let cols = sparkle.isEmpty ? [Color.white] : sparkle
+            let grains = max(40, Int(size.width * size.height / 9))
+            for _ in 0..<grains {
+                let x = CGFloat(rng.unit()) * size.width
+                let y = CGFloat(rng.unit()) * size.height
+                let r = 0.5 + CGFloat(rng.unit()) * 1.5
+                let c = cols[Int(rng.unit() * Double(cols.count)) % cols.count]
+                ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                         with: .color(c.opacity(0.45 + rng.unit() * 0.55)))
+            }
+            for _ in 0..<3 {
+                let x = CGFloat(rng.unit()) * size.width
+                let y = CGFloat(rng.unit()) * size.height
+                let s = 2.2 + CGFloat(rng.unit()) * 2.2
+                ctx.fill(sparkleStarPath(at: CGPoint(x: x, y: y), size: s),
+                         with: .color(.white.opacity(0.9)))
+            }
+            // Glossy highlight.
+            ctx.fill(circle, with: .radialGradient(
+                Gradient(colors: [.white.opacity(0.4), .clear]),
+                center: CGPoint(x: size.width * 0.32, y: size.height * 0.28),
+                startRadius: 0, endRadius: size.width * 0.55))
         }
     }
 }
