@@ -43,7 +43,8 @@ struct ColoringArtwork: View {
             if fill.tool.addsSparkle || fill.paint.sparkles {
                 let pal = glitterPalettes(for: fill.paint)
                 drawGlitter(p, id: region.id, grain: pal.grain,
-                            intensity: pal.intensity, in: &ctx, layout: layout)
+                            intensity: pal.intensity, big: fill.paint.bigSparkle,
+                            in: &ctx, layout: layout)
             }
         } else {
             ctx.fill(p, with: .color(.white))
@@ -102,18 +103,24 @@ struct ColoringArtwork: View {
     /// Static shimmering glitter grains (bright twinkling stars are animated
     /// separately by VectorSparkleLayer).
     private func drawGlitter(_ p: Path, id: Int, grain: [Color],
-                             intensity: Double, in ctx: inout GraphicsContext, layout: Layout) {
+                             intensity: Double, big: Bool = false,
+                             in ctx: inout GraphicsContext, layout: Layout) {
         let b = p.boundingRect
         guard b.width > 0, b.height > 0, !grain.isEmpty else { return }
+
+        // Sparkle styles use bigger round grains (and fewer, so they don't merge).
+        let rBase: CGFloat = big ? 1.3 : 0.5
+        let rSpan: CGFloat = big ? 3.4 : 1.6
+        let density: CGFloat = big ? 520 : 150
 
         ctx.drawLayer { layer in
             layer.clip(to: p)
             var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(id)) &* 0x9E3779B1 &+ 1)
-            let grains = max(80, min(4500, Int(b.width * b.height / 150 * CGFloat(intensity))))
+            let grains = max(60, min(4500, Int(b.width * b.height / density * CGFloat(intensity))))
             for _ in 0..<grains {
                 let px = b.minX + CGFloat(rng.unit()) * b.width
                 let py = b.minY + CGFloat(rng.unit()) * b.height
-                let r = (0.5 + CGFloat(rng.unit()) * 1.6) * layout.scale
+                let r = (rBase + CGFloat(rng.unit()) * rSpan) * layout.scale
                 let c = grain[Int(rng.unit() * Double(grain.count)) % grain.count]
                 layer.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
                            with: .color(c.opacity(0.55 + rng.unit() * 0.45)))

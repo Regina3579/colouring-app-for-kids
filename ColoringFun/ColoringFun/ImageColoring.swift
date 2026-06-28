@@ -196,7 +196,7 @@ final class FloodFillModel: ObservableObject {
                 let stars: [(UInt8, UInt8, UInt8)] = style.map { $0.sparkle.map { rgb($0) } }
                     ?? [(255, 255, 255), (255, 216, 90)]
                 addSparkles(region, tints: sparkleTints(paintStyle), stars: stars,
-                            intensity: style?.intensity ?? 1.0)
+                            intensity: style?.intensity ?? 1.0, big: paintStyle.bigSparkle)
                 addAnchors(region, paint: paintStyle)
             }
             if tool == .crayon { applyCrayonTexture(region) }
@@ -315,7 +315,8 @@ final class FloodFillModel: ObservableObject {
     }
 
     private func addSparkles(_ region: [Int], tints: [(UInt8, UInt8, UInt8)],
-                             stars: [(UInt8, UInt8, UInt8)], intensity: Double = 1.0) {
+                             stars: [(UInt8, UInt8, UInt8)], intensity: Double = 1.0,
+                             big: Bool = false) {
         var rng = SystemRandomNumberGenerator()
         typealias RGB = (UInt8, UInt8, UInt8)
         let white: RGB = (255, 255, 255)
@@ -340,19 +341,22 @@ final class FloodFillModel: ObservableObject {
             setpx(x, y, center)
         }
 
-        // Dense fine grains (2px blocks).
-        let grains = max(20, Int(Double(region.count) / 90 * intensity))
+        // Glitter grains — bigger blocks (and fewer) for the loud Sparkle styles.
+        let blockSize = big ? 4 : 2
+        let grainDiv = big ? 320.0 : 90.0
+        let grains = max(16, Int(Double(region.count) / grainDiv * intensity))
         for _ in 0..<grains {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
             let c = grainColors[Int.random(in: 0..<grainColors.count, using: &rng)]
-            block(idx % w, idx / w, 2, c)
+            block(idx % w, idx / w, blockSize, c)
         }
         // A few bright shining star-sparkles with coloured centres.
         let starCount = max(3, Int(Double(region.count) / 3500 * intensity))
+        let starBase = big ? 5 : 3
         for _ in 0..<starCount {
             let idx = region[Int.random(in: 0..<region.count, using: &rng)]
             let center = starColors[Int.random(in: 0..<starColors.count, using: &rng)]
-            sparkle(idx % w, idx / w, 3 + Int.random(in: 0...2, using: &rng), center)
+            sparkle(idx % w, idx / w, starBase + Int.random(in: 0...2, using: &rng), center)
         }
     }
 
