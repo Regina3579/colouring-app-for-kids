@@ -19,9 +19,6 @@ struct GalleryView: View {
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
 
-                // "Color My Photo" is paused for now — re-enable by adding
-                // `photoColoringSection` back here.
-
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
                         NavigationLink {
@@ -73,27 +70,6 @@ struct GalleryView: View {
                 ProBannerCard(emoji: "🎨", title: "Create Your Own Drawing",
                               subtitle: "Draw with ✏️ pen, 🖌️ brush & 🖍️ crayon",
                               colors: [Candy.purple, Candy.pink], locked: true)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    /// Pro-only "Color My Photo": pick a photo, turn it into an outline to colour.
-    @ViewBuilder private var photoColoringSection: some View {
-        if pro.isUnlocked {
-            NavigationLink {
-                PhotoColoringScreen()
-            } label: {
-                ProBannerCard(emoji: "📷", title: "Color My Photo",
-                              subtitle: "Turn your photo into an outline to colour",
-                              colors: [Candy.blue, Candy.teal], locked: false)
-            }
-            .buttonStyle(.plain)
-        } else {
-            Button { showPro = true } label: {
-                ProBannerCard(emoji: "📷", title: "Color My Photo",
-                              subtitle: "Turn your photo into an outline to colour",
-                              colors: [Candy.blue, Candy.teal], locked: true)
             }
             .buttonStyle(.plain)
         }
