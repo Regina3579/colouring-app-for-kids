@@ -229,6 +229,11 @@ struct ToolBar: View {
     @ViewBuilder private func toolGlyph(_ t: Tool) -> some View {
         if t == .bucket {
             Image("tool_paint").resizable().scaledToFit().frame(width: 34, height: 34)
+        } else if t == .glitter {
+            // A magic wand with a star for the Sparkle tool.
+            Image(systemName: "wand.and.stars")
+                .font(.system(size: 23, weight: .bold))
+                .foregroundStyle(.white)
         } else {
             Text(t.emoji).font(.system(size: 24))
         }
