@@ -229,7 +229,7 @@ struct ToolBar: View {
     @ViewBuilder private func toolGlyph(_ t: Tool) -> some View {
         if t == .bucket {
             Image("tool_paint").resizable().scaledToFit().frame(width: 34, height: 34)
-        } else if t == .glitter {
+        } else if t == .sparkle {
             sparkleWandGlyph
         } else {
             Text(t.emoji).font(.system(size: 24))
@@ -271,6 +271,7 @@ struct ToolBar: View {
         case .bucket:  return Candy.blue
         case .crayon:  return Candy.orange
         case .glitter: return Candy.pink
+        case .sparkle: return Candy.purple
         case .eraser:  return Candy.teal
         }
     }

@@ -25,7 +25,7 @@ struct ColoringArtwork: View {
                 }
             }
             VectorSparkleLayer(page: page, fills: fills)
-                .id(fills.values.filter { $0.tool == .glitter || $0.paint.sparkles }.count)
+                .id(fills.values.filter { $0.tool.addsSparkle || $0.paint.sparkles }.count)
         }
         .background(Color.white)
     }
@@ -40,7 +40,7 @@ struct ColoringArtwork: View {
             let alpha = fill.tool == .crayon ? 0.9 : 1.0
             ctx.fill(p, with: shading(for: fill.paint, in: p.boundingRect, alpha: alpha))
             if fill.tool == .crayon { drawCrayon(p, in: &ctx, layout: layout) }
-            if fill.tool == .glitter || fill.paint.sparkles {
+            if fill.tool.addsSparkle || fill.paint.sparkles {
                 let pal = glitterPalettes(for: fill.paint)
                 drawGlitter(p, id: region.id, grain: pal.grain,
                             intensity: pal.intensity, in: &ctx, layout: layout)

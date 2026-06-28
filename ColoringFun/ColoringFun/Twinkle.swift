@@ -79,7 +79,7 @@ struct VectorSparkleLayer: View {
     let fills: [Int: Fill]
 
     private var hasGlitter: Bool {
-        fills.values.contains { $0.tool == .glitter || $0.paint.sparkles }
+        fills.values.contains { $0.tool.addsSparkle || $0.paint.sparkles }
     }
 
     var body: some View {
@@ -91,7 +91,7 @@ struct VectorSparkleLayer: View {
             Canvas { ctx, size in
                 let layout = Layout(canvas: page.canvas, view: size)
                 for region in page.regions {
-                    guard let f = fills[region.id], f.tool == .glitter || f.paint.sparkles else { continue }
+                    guard let f = fills[region.id], f.tool.addsSparkle || f.paint.sparkles else { continue }
                     let p = region.path.applying(layout.transform)
                     let b = p.boundingRect
                     guard b.width > 0, b.height > 0 else { continue }

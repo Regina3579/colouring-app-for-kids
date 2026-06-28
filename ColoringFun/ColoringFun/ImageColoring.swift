@@ -191,7 +191,7 @@ final class FloodFillModel: ObservableObject {
             case .fancy(let style):
                 gradientFill(region, style.base)
             }
-            if tool == .glitter || paintStyle.sparkles {
+            if tool.addsSparkle || paintStyle.sparkles {
                 let style = paintStyle.fancyStyle
                 let stars: [(UInt8, UInt8, UInt8)] = style.map { $0.sparkle.map { rgb($0) } }
                     ?? [(255, 255, 255), (255, 216, 90)]

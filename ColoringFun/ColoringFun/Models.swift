@@ -6,6 +6,7 @@ enum Tool: String, CaseIterable, Identifiable {
     case bucket   // solid paint-bucket fill
     case crayon   // waxy crayon texture
     case glitter  // sparkly glitter fill
+    case sparkle  // magic-wand sparkle (same shimmer, wand icon)
     case eraser   // remove the colour again
 
     var id: String { rawValue }
@@ -16,6 +17,7 @@ enum Tool: String, CaseIterable, Identifiable {
         case .bucket:  return "drop.fill"
         case .crayon:  return "pencil.tip"
         case .glitter: return "sparkles"
+        case .sparkle: return "wand.and.stars"
         case .eraser:  return "eraser.fill"
         }
     }
@@ -24,7 +26,8 @@ enum Tool: String, CaseIterable, Identifiable {
         switch self {
         case .bucket:  return "Paint"
         case .crayon:  return "Crayon"
-        case .glitter: return "Sparkle"
+        case .glitter: return "Glitter"
+        case .sparkle: return "Sparkle"
         case .eraser:  return "Eraser"
         }
     }
@@ -35,12 +38,16 @@ enum Tool: String, CaseIterable, Identifiable {
         case .bucket:  return "🪣"
         case .crayon:  return "🖍️"
         case .glitter: return "✨"
+        case .sparkle: return "🪄"
         case .eraser:  return "🧽"
         }
     }
 
-    /// Glitter is a Pro-only tool.
-    var isPro: Bool { self == .glitter }
+    /// Glitter and Sparkle are Pro-only tools.
+    var isPro: Bool { self == .glitter || self == .sparkle }
+
+    /// True for tools that add sparkles to whatever colour is used.
+    var addsSparkle: Bool { self == .glitter || self == .sparkle }
 }
 
 // MARK: - A single fillable part of a picture
