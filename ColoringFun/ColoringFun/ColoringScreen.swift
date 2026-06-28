@@ -230,13 +230,40 @@ struct ToolBar: View {
         if t == .bucket {
             Image("tool_paint").resizable().scaledToFit().frame(width: 34, height: 34)
         } else if t == .glitter {
-            // A magic wand with a star for the Sparkle tool.
-            Image(systemName: "wand.and.stars")
-                .font(.system(size: 23, weight: .bold))
-                .foregroundStyle(.white)
+            sparkleWandGlyph
         } else {
             Text(t.emoji).font(.system(size: 24))
         }
+    }
+
+    /// A magic wand with a golden star at the tip and little sparkles.
+    private var sparkleWandGlyph: some View {
+        ZStack {
+            // Wand stick (diagonal, bottom-left to top-right).
+            Capsule()
+                .fill(LinearGradient(colors: [.white, Color(white: 0.8)],
+                                     startPoint: .topTrailing, endPoint: .bottomLeading))
+                .frame(width: 5, height: 24)
+                .rotationEffect(.degrees(42))
+                .offset(x: -4, y: 6)
+            // Golden star at the top tip.
+            Image(systemName: "star.fill")
+                .font(.system(size: 17, weight: .black))
+                .foregroundStyle(LinearGradient(colors: [Candy.yellow, Candy.orange],
+                                                startPoint: .top, endPoint: .bottom))
+                .shadow(color: .black.opacity(0.15), radius: 1, y: 0.5)
+                .offset(x: 8, y: -8)
+            // Little sparkles.
+            Image(systemName: "sparkle")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.white)
+                .offset(x: 9, y: 7)
+            Image(systemName: "sparkle")
+                .font(.system(size: 5, weight: .bold))
+                .foregroundStyle(.white.opacity(0.9))
+                .offset(x: -8, y: -5)
+        }
+        .frame(width: 34, height: 34)
     }
 
     private func toolColor(_ t: Tool) -> Color {
