@@ -19,9 +19,8 @@ struct GalleryView: View {
                     .padding(.horizontal, 18)
                     .padding(.top, 8)
 
-                photoColoringSection
-                    .padding(.horizontal, 18)
-                    .padding(.top, 12)
+                // "Color My Photo" is paused for now — re-enable by adding
+                // `photoColoringSection` back here.
 
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
