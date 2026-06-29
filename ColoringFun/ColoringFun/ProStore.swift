@@ -4,9 +4,10 @@ import StoreKit
 // MARK: - Legal links shown on the Pro page (Apple requires functional links)
 
 enum ProLinks {
-    // ‼️ REPLACE these with your real hosted pages before submitting to review.
-    static let privacy = URL(string: "https://example.com/privacy")!
-    static let terms   = URL(string: "https://example.com/terms")!
+    // Hosted on GitHub Pages (see docs/ folder). These go live once you enable
+    // GitHub Pages on the repo (Settings → Pages → main branch, /docs folder).
+    static let privacy = URL(string: "https://regina3579.github.io/colouring-app-for-kids/privacy.html")!
+    static let terms   = URL(string: "https://regina3579.github.io/colouring-app-for-kids/terms.html")!
 }
 
 /// Unlocks "Coloring Fun Pro" via real StoreKit auto-renewable subscriptions.
