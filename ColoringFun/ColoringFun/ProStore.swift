@@ -171,7 +171,14 @@ struct ProUnlockView: View {
     @State private var working = false
 
     private func price(for plan: ProPlan) -> String {
-        pro.product(for: plan.id)?.displayPrice ?? plan.fallbackPrice
+        // Always show the India price (₹99 / ₹590). We prefer the live StoreKit
+        // price only when it's already in Indian Rupees; otherwise (e.g. the US
+        // test storefront) we fall back to the fixed ₹ price so the UI never
+        // shows dollars. The actual charge always uses the real StoreKit product.
+        if let p = pro.product(for: plan.id), p.displayPrice.contains("₹") {
+            return p.displayPrice
+        }
+        return plan.fallbackPrice
     }
 
     var body: some View {
