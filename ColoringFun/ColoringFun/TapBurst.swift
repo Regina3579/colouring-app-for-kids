@@ -25,32 +25,42 @@ enum SparkleSound {
         try? AVAudioSession.sharedInstance().setActive(true)
         #endif
         guard let p = try? AVAudioPlayer(data: data) else { return }
-        p.volume = 0.55
+        p.volume = 0.42
         player = p          // keep a strong reference so it isn't deallocated
         p.play()
     }
 
     private static func makeTwinkle() -> Data {
         let sampleRate = 44100.0
-        let total = Int(sampleRate * 0.5)
+        let total = Int(sampleRate * 1.0)
         var samples = [Double](repeating: 0, count: total)
 
-        // A quick ascending sparkle: bright high notes with fast decay.
-        let notes: [Double] = [1318.5, 1760.0, 2093.0, 2637.0, 3136.0]   // E6 A6 C7 E7 G7
+        // A soft, magical ascending chime — a gentle major arpeggio with a warm,
+        // slow, bell-like tail (each note rings on under the next).
+        let notes: [Double] = [523.25, 659.25, 783.99, 1046.50, 1318.51]  // C5 E5 G5 C6 E6
         for (i, f) in notes.enumerated() {
-            let startIdx = Int(Double(i) * 0.045 * sampleRate)
-            let len = Int(0.22 * sampleRate)
+            let startIdx = Int(Double(i) * 0.075 * sampleRate)
+            let len = Int(0.8 * sampleRate)
             for k in 0..<len {
                 let idx = startIdx + k
                 if idx >= total { break }
                 let t = Double(k) / sampleRate
-                let env = exp(-t * 16.0)                       // fast, twinkly decay
-                samples[idx] += sin(2 * .pi * f * t) * env * 0.22
-                samples[idx] += sin(2 * .pi * f * 2 * t) * env * 0.06   // shimmer harmonic
+                let attack = min(1.0, t / 0.008)          // soft 8ms fade-in (no click)
+                let decay = exp(-t * 4.0)                 // gentle, soft tail
+                let env = attack * decay
+                var s = sin(2 * .pi * f * t)
+                s += 0.16 * sin(2 * .pi * f * 2 * t)      // warm shimmer harmonic
+                samples[idx] += s * env * 0.14
             }
         }
 
-        // Convert to 16-bit PCM WAV.
+        // Fade the very end so it ends silently.
+        let fade = Int(0.06 * sampleRate)
+        for k in 0..<fade {
+            let idx = total - fade + k
+            if idx >= 0, idx < total { samples[idx] *= Double(fade - k) / Double(fade) }
+        }
+
         var pcm = [Int16](repeating: 0, count: total)
         for i in 0..<total { pcm[i] = Int16(max(-1, min(1, samples[i])) * 32767) }
         return wav(pcm, sampleRate: Int(sampleRate))
