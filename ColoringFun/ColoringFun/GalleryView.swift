@@ -10,6 +10,8 @@ private let inkColor = Color(red: 0.32, green: 0.30, blue: 0.45)
 struct GalleryView: View {
     @State private var showPro = false
     @ObservedObject private var pro = ProStore.shared
+    @State private var goCategory: Category?
+    @State private var bursting = false
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
@@ -21,8 +23,8 @@ struct GalleryView: View {
 
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
-                        NavigationLink {
-                            CategoryPagesView(category: category)
+                        Button {
+                            burstThenOpen { goCategory = category }
                         } label: {
                             CategoryCard(category: category)
                         }
@@ -32,6 +34,8 @@ struct GalleryView: View {
                 .padding(18)
             }
             .background(bgGradient.ignoresSafeArea())
+            .navigationDestination(item: $goCategory) { CategoryPagesView(category: $0) }
+            .overlay { if bursting { StarBurst() } }
             .navigationTitle("Coloring Fun")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -50,6 +54,16 @@ struct GalleryView: View {
                 }
             }
             .sheet(isPresented: $showPro) { ProUnlockView() }
+        }
+    }
+
+    /// Plays the star-burst + haptic + sound, then opens after a short beat.
+    private func burstThenOpen(_ open: @escaping () -> Void) {
+        TapFX.play()
+        bursting = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            open()
+            bursting = false
         }
     }
 
@@ -118,6 +132,8 @@ struct CategoryPagesView: View {
     let category: Category
     @ObservedObject private var pro = ProStore.shared
     @State private var showPro = false
+    @State private var goItem: CategoryItem?
+    @State private var bursting = false
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
@@ -129,8 +145,13 @@ struct CategoryPagesView: View {
                         Button { showPro = true } label: { card(item, locked: true) }
                             .buttonStyle(.plain)
                     } else {
-                        NavigationLink {
-                            destination(item)
+                        Button {
+                            TapFX.play()
+                            bursting = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                goItem = item
+                                bursting = false
+                            }
                         } label: {
                             card(item, locked: false)
                         }
@@ -141,6 +162,8 @@ struct CategoryPagesView: View {
             .padding(18)
         }
         .background(bgGradient.ignoresSafeArea())
+        .navigationDestination(item: $goItem) { destination($0) }
+        .overlay { if bursting { StarBurst() } }
         .navigationTitle("\(category.emoji) \(category.name)")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPro) { ProUnlockView() }

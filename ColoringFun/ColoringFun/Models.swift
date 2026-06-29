@@ -281,6 +281,18 @@ enum CategoryItem: Identifiable {
     }
 }
 
+// MARK: - Hashable by id, for programmatic navigation
+
+extension CategoryItem: Hashable {
+    static func == (a: CategoryItem, b: CategoryItem) -> Bool { a.id == b.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
+extension Category: Hashable {
+    static func == (a: Category, b: Category) -> Bool { a.id == b.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
 // MARK: - A themed section holding many pictures
 
 struct Category: Identifiable {
