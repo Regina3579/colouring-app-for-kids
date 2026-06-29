@@ -1,3 +1,4 @@
+import math
 import os, random
 from collections import deque
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -58,6 +59,32 @@ def colorize(path, maxw=520, seed=7):
     img = Image.new("RGB",(Wd,Hd)); img.putdata(res)
     return img
 
+def sparkle_overlay(img, seed=1):
+    img=img.convert("RGB"); Wd,Hd=img.size; px=img.load()
+    pts=[]
+    for y in range(0,Hd,3):
+        for x in range(0,Wd,3):
+            r,g,b=px[x,y]
+            if not (r>238 and g>238 and b>238): pts.append((x,y))
+    if not pts: return img
+    rng=random.Random(seed*7+1)
+    ov=Image.new("RGBA",(Wd,Hd),(0,0,0,0)); d=ImageDraw.Draw(ov)
+    scol=[(255,255,255),(255,245,170),(255,210,240),(200,235,255)]
+    n=min(int(Wd*Hd/1700)+14, 240)
+    def star(cx,cy,r,col):
+        p=[]
+        for k in range(8):
+            rr=r if k%2==0 else r*0.4; a=math.pi/4*k-math.pi/2
+            p.append((cx+rr*math.cos(a),cy+rr*math.sin(a)))
+        d.polygon(p,fill=col)
+    for _ in range(n):
+        cx,cy=rng.choice(pts); r=rng.uniform(3,9)
+        if rng.random()<0.55: star(cx,cy,r,rng.choice(scol))
+        else: d.ellipse([cx-2,cy-2,cx+2,cy+2],fill=(255,255,255,235))
+    img=img.convert("RGBA"); img.alpha_composite(ov); return img.convert("RGB")
+def glit(path,maxw=420,seed=7):
+    return sparkle_overlay(colorize(path,maxw,seed),seed)
+
 def gradient_bg():
     bg = Image.new("RGB",(W,H)); d=ImageDraw.Draw(bg)
     for y in range(H):
@@ -101,7 +128,7 @@ pill(dr,300,"Tap to fill with bright colors",font(52),(120,90,200))
 margin,gap=70,46; cw=(W-2*margin-gap)//2; ch=cw; sy=470; rg=58
 for idx,(a,lbl,tint) in enumerate(picks2):
     r,c=divmod(idx,2); x=margin+c*(cw+gap); y=sy+r*(ch+70+rg)
-    card(bg,x,y,cw,ch,tint,colorize(asset(a),seed=idx*5+3),lbl)
+    card(bg,x,y,cw,ch,tint,glit(asset(a),520,idx*5+3),lbl)
 pill(dr,2540,"Glitter & sparkle colors  -  Stickers  -  Draw your own",font(44),INK)
 bg.convert("RGB").save(os.path.join(OUTDIR,"store_screenshot_2_colored.png"))
 print("saved 2")
@@ -137,7 +164,7 @@ strip=[("princess_golden",(255,236,200)),("fairy_butterfly",(228,216,250)),("uni
 strip=[t for t in strip if asset(t[0])]
 sw=400; sgap=48; total=len(strip)*sw+(len(strip)-1)*sgap; sx0=(W-total)//2; sy=y+hh+72
 for i,(a,tint) in enumerate(strip):
-    card(bg,sx0+i*(sw+sgap),sy,sw,sw,tint,colorize(asset(a),maxw=440,seed=i+30),"")
+    card(bg,sx0+i*(sw+sgap),sy,sw,sw,tint,glit(asset(a),440,i+30),"")
 pill(dr,sy+sw+58,"Mermaid - Rainbow - Aurora - Gold & more",font(44),INK)
 bg.convert("RGB").save(os.path.join(OUTDIR,"store_screenshot_3_glitter.png"))
 print("saved 3")

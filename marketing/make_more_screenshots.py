@@ -51,6 +51,33 @@ def colorize(path,maxw=420,seed=7):
         for i in reg: out[i]=col
     res=[(45,42,55) if wall[i] else ((255,255,255) if bg[i] else out[i]) for i in range(n)]
     img=Image.new("RGB",(Wd,Hd)); img.putdata(res); return img
+
+def sparkle_overlay(img, seed=1):
+    img=img.convert("RGB"); Wd,Hd=img.size; px=img.load()
+    pts=[]
+    for y in range(0,Hd,3):
+        for x in range(0,Wd,3):
+            r,g,b=px[x,y]
+            if not (r>238 and g>238 and b>238): pts.append((x,y))
+    if not pts: return img
+    rng=random.Random(seed*7+1)
+    ov=Image.new("RGBA",(Wd,Hd),(0,0,0,0)); d=ImageDraw.Draw(ov)
+    scol=[(255,255,255),(255,245,170),(255,210,240),(200,235,255)]
+    n=min(int(Wd*Hd/1700)+14, 240)
+    def star(cx,cy,r,col):
+        p=[]
+        for k in range(8):
+            rr=r if k%2==0 else r*0.4; a=math.pi/4*k-math.pi/2
+            p.append((cx+rr*math.cos(a),cy+rr*math.sin(a)))
+        d.polygon(p,fill=col)
+    for _ in range(n):
+        cx,cy=rng.choice(pts); r=rng.uniform(3,9)
+        if rng.random()<0.55: star(cx,cy,r,rng.choice(scol))
+        else: d.ellipse([cx-2,cy-2,cx+2,cy+2],fill=(255,255,255,235))
+    img=img.convert("RGBA"); img.alpha_composite(ov); return img.convert("RGB")
+def glit(path,maxw=420,seed=7):
+    return sparkle_overlay(colorize(path,maxw,seed),seed)
+
 def grad():
     g=Image.new("RGB",(W,H)); d=ImageDraw.Draw(g)
     for y in range(H):
@@ -85,13 +112,13 @@ center(dr,140,"Watch it come to life!",fit(dr,"Watch it come to life!",W-110,96)
 pill(dr,290,"Just tap to fill with color",font(50),PURP)
 cw=560; y0=470
 card(bg,55,y0,cw,cw,(236,236,245),flat(asset("unicorn_rainbow"),520),"Outline")
-card(bg,W-55-cw,y0,cw,cw,(255,217,235),colorize(asset("unicorn_rainbow"),520,11),"Colored!")
+card(bg,W-55-cw,y0,cw,cw,(255,217,235),glit(asset("unicorn_rainbow"),520,11),"Colored!")
 ax=W//2; ay=y0+cw//2
 dr.polygon([(ax-46,ay-34),(ax+10,ay-34),(ax+10,ay-60),(ax+62,ay),(ax+10,ay+60),(ax+10,ay+34),(ax-46,ay+34)],fill=PURP)
 var=[a for a in ["princess_golden","fairy_butterfly","car_race","lion","trex","bird_peacock"] if asset(a)][:6]
 sw=385; gp=46; mx=(W-3*sw-2*gp)//2; sy=1200
 for idx,a in enumerate(var):
-    r,c=divmod(idx,3); card(bg,mx+c*(sw+gp),sy+r*(sw+62),sw,sw,TINTS[idx%len(TINTS)],colorize(asset(a),350,idx*9+2))
+    r,c=divmod(idx,3); card(bg,mx+c*(sw+gp),sy+r*(sw+62),sw,sw,TINTS[idx%len(TINTS)],glit(asset(a),350,idx*9+2))
 pill(dr,sy+2*sw+62+34,"Animals - Fairies - Unicorns & more",font(44),INK)
 bg.convert("RGB").save(os.path.join(OUTDIR,"store_screenshot_4_beforeafter.png")); print("A")
 
@@ -105,14 +132,14 @@ items=[a for a in items if asset(a)][:12]
 cols=3; mx=50; gp=34; cw=(W-2*mx-gp*(cols-1))//cols; ch=cw; sy=430
 for idx,a in enumerate(items):
     r,c=divmod(idx,cols); x=mx+c*(cw+gp); y=sy+r*(ch+gp)
-    card(bg,x,y,cw,ch,TINTS[idx%len(TINTS)],colorize(asset(a),360,idx*7+1))
+    card(bg,x,y,cw,ch,TINTS[idx%len(TINTS)],glit(asset(a),360,idx*7+1))
 pill(dr,sy+4*(ch+gp)+10,"Glitter - Sparkle - Stickers - Save & Share",font(42),INK)
 bg.convert("RGB").save(os.path.join(OUTDIR,"store_screenshot_5_collage.png")); print("B")
 
 # ===== C: Features =====
 bg=grad(); dr=ImageDraw.Draw(bg)
 center(dr,140,"Everything Kids Love",fit(dr,"Everything Kids Love",W-100,96),INK)
-hero=colorize(asset("princess_golden"),640,seed=3)
+hero=glit(asset("princess_golden"),640,3)
 hw=800; hh=int(hero.height*hw/hero.width); x=(W-hw)//2; y=360
 sh=Image.new("RGBA",(W,H),(0,0,0,0)); ImageDraw.Draw(sh).rounded_rectangle([x,y+14,x+hw,y+hh+14],50,fill=(60,40,90,60))
 bg.alpha_composite(sh.filter(ImageFilter.GaussianBlur(12)))
