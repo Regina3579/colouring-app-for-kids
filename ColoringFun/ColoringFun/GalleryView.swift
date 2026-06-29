@@ -12,6 +12,7 @@ struct GalleryView: View {
     @ObservedObject private var pro = ProStore.shared
     @State private var goCategory: Category?
     @State private var bursting = false
+    @State private var burstOrigin: CGPoint = .zero
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
@@ -23,19 +24,19 @@ struct GalleryView: View {
 
                 LazyVGrid(columns: columns, spacing: 18) {
                     ForEach(Categories.all) { category in
-                        Button {
-                            burstThenOpen { goCategory = category }
-                        } label: {
-                            CategoryCard(category: category)
-                        }
-                        .buttonStyle(.plain)
+                        CategoryCard(category: category)
+                            .contentShape(Rectangle())
+                            .gesture(SpatialTapGesture(coordinateSpace: .global).onEnded { value in
+                                burstOrigin = value.location
+                                burstThenOpen { goCategory = category }
+                            })
                     }
                 }
                 .padding(18)
             }
             .background(bgGradient.ignoresSafeArea())
             .navigationDestination(item: $goCategory) { CategoryPagesView(category: $0) }
-            .overlay { if bursting { StarBurst() } }
+            .overlay { if bursting { StarBurst(globalOrigin: burstOrigin) } }
             .navigationTitle("Coloring Fun")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -134,6 +135,7 @@ struct CategoryPagesView: View {
     @State private var showPro = false
     @State private var goItem: CategoryItem?
     @State private var bursting = false
+    @State private var burstOrigin: CGPoint = .zero
     private let columns = [GridItem(.adaptive(minimum: 150), spacing: 18)]
 
     var body: some View {
@@ -145,17 +147,17 @@ struct CategoryPagesView: View {
                         Button { showPro = true } label: { card(item, locked: true) }
                             .buttonStyle(.plain)
                     } else {
-                        Button {
-                            TapFX.play()
-                            bursting = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                                goItem = item
-                                bursting = false
-                            }
-                        } label: {
-                            card(item, locked: false)
-                        }
-                        .buttonStyle(.plain)
+                        card(item, locked: false)
+                            .contentShape(Rectangle())
+                            .gesture(SpatialTapGesture(coordinateSpace: .global).onEnded { value in
+                                burstOrigin = value.location
+                                TapFX.play()
+                                bursting = true
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                                    goItem = item
+                                    bursting = false
+                                }
+                            })
                     }
                 }
             }
@@ -163,7 +165,7 @@ struct CategoryPagesView: View {
         }
         .background(bgGradient.ignoresSafeArea())
         .navigationDestination(item: $goItem) { destination($0) }
-        .overlay { if bursting { StarBurst() } }
+        .overlay { if bursting { StarBurst(globalOrigin: burstOrigin) } }
         .navigationTitle("\(category.emoji) \(category.name)")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showPro) { ProUnlockView() }
