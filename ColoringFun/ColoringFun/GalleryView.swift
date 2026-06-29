@@ -245,12 +245,16 @@ private struct ImagePageCard: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ZStack(alignment: .topTrailing) {
+            ZStack {
                 RoundedRectangle(cornerRadius: 24).fill(page.cardTint)
                 Image(page.imageName)
                     .resizable()
                     .scaledToFit()
                     .padding(10)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 150)
+            .overlay(alignment: .topTrailing) {
                 if locked {
                     // Small corner badge so the picture stays fully visible.
                     HStack(spacing: 3) {
@@ -269,7 +273,6 @@ private struct ImagePageCard: View {
                     .padding(8)
                 }
             }
-            .frame(height: 150)
             .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white, lineWidth: 4))
             .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
 
