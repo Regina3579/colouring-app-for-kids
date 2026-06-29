@@ -152,22 +152,34 @@ enum DrawingRender {
     }
 
     private static func drawSparkles(_ stroke: DrawStroke, in ctx: inout GraphicsContext) {
-        let colors: [Color]
+        let grainCols: [Color]
+        let starCols: [Color]
         switch stroke.paint {
-        case .glitter:        colors = [.white]
-        case .fancy(let s):   colors = s.sparkle
+        case .glitter(let c): grainCols = [.white, .white, c]; starCols = [.white]
+        case .fancy(let s):   grainCols = s.sparkle; starCols = s.sparkle
         default:              return
         }
-        var rng = SeededGenerator(seed: UInt64(bitPattern: Int64(stroke.id.hashValue)))
-        let w = stroke.width
-        for pt in stroke.points where rng.unit() < 0.35 {
-            let dx = (rng.unit() - 0.5) * w
-            let dy = (rng.unit() - 0.5) * w
-            let r = w * (0.06 + rng.unit() * 0.10)
-            let c = colors[Int(rng.unit() * Double(colors.count)) % max(colors.count, 1)]
+        let big = stroke.paint.bigSparkle
+        var rng = SeededGenerator(seed: (UInt64(bitPattern: Int64(stroke.id.hashValue)) | 1))
+        // Spread sparkles around the stroke, with a visible minimum size so even
+        // a thin pen shows clear glitter (not just a plain coloured line).
+        let w = max(stroke.width, 12)
+        let spread = w * 1.1
+        for pt in stroke.points where rng.unit() < 0.6 {
+            let dx = (CGFloat(rng.unit()) - 0.5) * spread
+            let dy = (CGFloat(rng.unit()) - 0.5) * spread
+            let r = (big ? 1.8 : 1.1) + CGFloat(rng.unit()) * (big ? 3.0 : 1.8)
+            let c = grainCols[Int(rng.unit() * Double(grainCols.count)) % max(grainCols.count, 1)]
             ctx.fill(Path(ellipseIn: CGRect(x: pt.x + dx - r, y: pt.y + dy - r,
                                             width: r * 2, height: r * 2)),
-                     with: .color(c))
+                     with: .color(c.opacity(0.7 + rng.unit() * 0.3)))
+        }
+        // Bright star sparkles dotted along the stroke.
+        let step = max(2, stroke.points.count / (big ? 6 : 12))
+        for i in stride(from: 0, to: stroke.points.count, by: step) {
+            let s = (big ? 4.5 : 3.0) + CGFloat(rng.unit()) * (big ? 3.5 : 2.0)
+            let c = starCols[Int(rng.unit() * Double(starCols.count)) % max(starCols.count, 1)]
+            drawTwinkle(&ctx, at: stroke.points[i], color: c, size: s, level: 0.9)
         }
     }
 }
