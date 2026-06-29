@@ -8,8 +8,8 @@ import UIKit
 enum TapFX {
     static func play() {
         #if canImport(UIKit)
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        AudioServicesPlaySystemSound(1057)   // a light "tink" — replace with a custom sound later
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred()   // gentle vibration
+        AudioServicesPlaySystemSound(1003)   // soft chime — replace with a custom sound later
         #endif
     }
 }
@@ -29,15 +29,16 @@ struct StarBurst: View {
     @State private var start = Date()
     private let stars: [BurstStar]
 
-    init(duration: Double = 0.6) {
+    init(duration: Double = 0.75) {
         self.duration = duration
-        let palette: [Color] = [Candy.pink, Candy.blue, Candy.yellow, Candy.purple,
-                                Candy.orange, Candy.teal, Candy.green]
+        // Soft, mostly-white palette with gentle pops of pastel colour.
+        let palette: [Color] = [.white, Candy.pink, .white, Candy.blue, Candy.yellow,
+                                .white, Candy.purple, Candy.teal, .white, Candy.orange]
         var rng = SeededGenerator(seed: 0xBADC0FFEE0DDF00D)
-        stars = (0..<28).map { i in
+        stars = (0..<60).map { i in
             BurstStar(angle: rng.unit() * .pi * 2,
-                      distance: 0.16 + CGFloat(rng.unit()) * 0.52,
-                      size: 0.6 + CGFloat(rng.unit()) * 1.2,
+                      distance: 0.12 + CGFloat(rng.unit()) * 0.58,
+                      size: 0.5 + CGFloat(rng.unit()) * 1.0,
                       spin: -1 + rng.unit() * 2,
                       color: palette[i % palette.count])
         }
@@ -55,18 +56,11 @@ struct StarBurst: View {
                     let dist = CGFloat(ease) * s.distance * unit
                     let x = center.x + CGFloat(cos(s.angle)) * dist
                     let y = center.y + CGFloat(sin(s.angle)) * dist
-                    let scale = s.size * CGFloat(1 - t * 0.25)
-                    let alpha = 1 - t
-                    let p = CGPoint(x: x, y: y)
-                    ctx.drawLayer { l in
-                        l.translateBy(x: x, y: y)
-                        l.rotate(by: .radians(s.spin * t * 5))
-                        l.translateBy(x: -x, y: -y)
-                        l.fill(sparkleStarPath(at: p, size: 9 * scale),
-                               with: .color(s.color.opacity(alpha)))
-                        l.fill(sparkleStarPath(at: p, size: 4 * scale),
-                               with: .color(.white.opacity(alpha)))
-                    }
+                    let scale = s.size * CGFloat(1 - t * 0.2)
+                    // Soft fade-in then out, with a gentle glow around each star.
+                    let level = max(0.0, sin(.pi * t)) * 0.9
+                    drawTwinkle(&ctx, at: CGPoint(x: x, y: y), color: s.color,
+                                size: 4.6 * scale, level: level)
                 }
             }
         }

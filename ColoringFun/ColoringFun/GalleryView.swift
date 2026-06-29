@@ -61,7 +61,7 @@ struct GalleryView: View {
     private func burstThenOpen(_ open: @escaping () -> Void) {
         TapFX.play()
         bursting = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
             open()
             bursting = false
         }
@@ -148,7 +148,7 @@ struct CategoryPagesView: View {
                         Button {
                             TapFX.play()
                             bursting = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
                                 goItem = item
                                 bursting = false
                             }
