@@ -139,7 +139,7 @@ struct ProPlan: Identifiable, Equatable {
         period: "per month", subtitle: "Billed every month", badge: nil)
 
     static let yearly = ProPlan(
-        id: ProStore.yearlyID, title: "Yearly", fallbackPrice: "₹590",
+        id: ProStore.yearlyID, title: "Yearly", fallbackPrice: "₹599",
         period: "per year", subtitle: "12 months of Pro", badge: "BEST VALUE")
 
     static let all: [ProPlan] = [.yearly, .monthly]
@@ -171,7 +171,7 @@ struct ProUnlockView: View {
     @State private var working = false
 
     private func price(for plan: ProPlan) -> String {
-        // Always show the India price (₹99 / ₹590). We prefer the live StoreKit
+        // Always show the India price (₹99 / ₹599). We prefer the live StoreKit
         // price only when it's already in Indian Rupees; otherwise (e.g. the US
         // test storefront) we fall back to the fixed ₹ price so the UI never
         // shows dollars. The actual charge always uses the real StoreKit product.
