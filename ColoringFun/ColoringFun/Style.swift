@@ -16,21 +16,43 @@ enum Candy {
 extension View {
     /// Wraps an icon in a cute, glossy round button (for nav-bar actions).
     func cuteCircle(_ color: Color, size: CGFloat = 36) -> some View {
-        self
+        modifier(CuteCircle(color: color, size: size))
+    }
+}
+
+/// Glossy round button background used by `cuteCircle`. Split into its own
+/// modifier + helper views so the Swift type-checker doesn't have to solve one
+/// very large chained expression (which caused a build timeout).
+private struct CuteCircle: ViewModifier {
+    let color: Color
+    let size: CGFloat
+
+    func body(content: Content) -> some View {
+        content
             .font(.system(size: size * 0.46, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(
-                Circle()
-                    .fill(color.gradient)
-                    .overlay(
-                        Circle().fill(.white.opacity(0.25))
-                            .frame(width: size * 0.5, height: size * 0.5)
-                            .offset(x: -size * 0.12, y: -size * 0.15)
-                            .blur(radius: 1)
-                    )
-            )
+            .background(CuteCircleBackground(color: color, size: size))
             .overlay(Circle().stroke(.white.opacity(0.9), lineWidth: 2))
             .shadow(color: color.opacity(0.4), radius: 3, y: 2)
+    }
+}
+
+private struct CuteCircleBackground: View {
+    let color: Color
+    let size: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(color.gradient)
+            .overlay(highlight)
+    }
+
+    private var highlight: some View {
+        Circle()
+            .fill(.white.opacity(0.25))
+            .frame(width: size * 0.5, height: size * 0.5)
+            .offset(x: -size * 0.12, y: -size * 0.15)
+            .blur(radius: 1)
     }
 }
