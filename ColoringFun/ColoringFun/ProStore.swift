@@ -140,7 +140,7 @@ struct ProPlan: Identifiable, Equatable {
 
     static let yearly = ProPlan(
         id: ProStore.yearlyID, title: "Yearly", fallbackPrice: "₹590",
-        period: "per year", subtitle: "Just ₹49 / month", badge: "50% OFF")
+        period: "per year", subtitle: "12 months of Pro", badge: "BEST VALUE")
 
     static let all: [ProPlan] = [.yearly, .monthly]
 }
