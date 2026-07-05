@@ -1,0 +1,66 @@
+{
+  "identifier" : "coloringfun-pro",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_IN",
+    "_storefront" : "IND",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "coloringfun-pro-group",
+      "localizations" : [],
+      "name" : "Coloring Fun Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "599.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "coloringfun-pro-yearly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock everything in Coloring Fun Pro for a year and save 50%.",
+              "displayName" : "Pro Yearly",
+              "locale" : "en_IN"
+            }
+          ],
+          "productID" : "com.regina.ColoringFun.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Pro Yearly",
+          "subscriptionGroupID" : "coloringfun-pro-group",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "99.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "coloringfun-pro-monthly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock all Pro pictures, the create-your-own canvas, pastel and glitter colours, and remove ads.",
+              "displayName" : "Pro Monthly",
+              "locale" : "en_IN"
+            }
+          ],
+          "productID" : "com.regina.ColoringFun.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Pro Monthly",
+          "subscriptionGroupID" : "coloringfun-pro-group",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
